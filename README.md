@@ -43,10 +43,9 @@ HTML Generation:
 - Render localized HTML per language.
 - Store and export generated emails.
 
-Playwright Testing:
-- Validate placeholder substitution.
-- Check all <a href> links.
-- Optional: Validate visible copy text.
+ Playwright Testing:
+ - Validate placeholder substitution and missing links via Playwright.
+ - Optional: Validate visible copy text.
 
 ---
 
@@ -98,6 +97,9 @@ PlaywrightResult
 POST   /campaign
   - Create a new campaign.
 
+PUT    /campaign/{campaign_id}
+  - Update an existing campaign name.
+
 POST   /template
   - Upload HTML template.
 
@@ -139,9 +141,15 @@ Post-MVP Ideas:
 email-tool/
 ├── backend/
 │   ├── main.py
-│   ├── models.py
+│   ├── data_access/
+│   │   └── database.py
+│   ├── models/
+│   │   ├── base.py
+│   │   └── *.py
 │   ├── routers/
-│   └── templates/
+│   │   └── api.py
+│   └── services/
+│       └── *.py
 ├── frontend/
 │   ├── src/
 │   └── public/
