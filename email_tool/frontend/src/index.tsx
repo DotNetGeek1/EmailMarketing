@@ -5,7 +5,6 @@ const Header: React.FC = () => (
     <h1 className="text-center text-2xl font-semibold">Email Campaign Tool</h1>
   </header>
 );
-
 type SectionProps = {
   title: string;
   children: React.ReactNode;
@@ -160,6 +159,8 @@ const App: React.FC = () => {
         </div>
         <OutputSection text={output} />
       </main>
+      <div className="max-w-3xl mx-auto">
+
     </div>
   );
 };
