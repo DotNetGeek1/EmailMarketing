@@ -1,15 +1,20 @@
 const { useState } = React;
 
+const Header: React.FC = () => (
+  <header className="bg-blue-700 text-white p-4 shadow">
+    <h1 className="text-center text-2xl font-semibold">Email Campaign Tool</h1>
+  </header>
+);
 type SectionProps = {
   title: string;
   children: React.ReactNode;
 };
 
 const Section: React.FC<SectionProps> = ({ title, children }) => (
-  <div className="bg-white shadow rounded p-4 mb-4">
-    <h2 className="text-xl font-semibold mb-2">{title}</h2>
+  <section className="bg-white shadow rounded p-4 space-y-2 mb-4">
+    <h2 className="text-lg font-medium border-b pb-1">{title}</h2>
     {children}
-  </div>
+  </section>
 );
 
 const CreateCampaignForm: React.FC<{ onOutput: (o: string) => void }> = ({ onOutput }) => {
@@ -142,16 +147,20 @@ const App: React.FC = () => {
   const [output, setOutput] = useState('');
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6 text-center">Email Campaign Tool</h1>
-        <CreateCampaignForm onOutput={setOutput} />
-        <UploadTemplateForm onOutput={setOutput} />
-        <SubmitCopyForm onOutput={setOutput} />
-        <GenerateEmailsForm onOutput={setOutput} />
-        <RunTestsForm onOutput={setOutput} />
+    <div className="min-h-screen bg-gray-100">
+      <Header />
+      <main className="max-w-4xl mx-auto p-6 space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <CreateCampaignForm onOutput={setOutput} />
+          <UploadTemplateForm onOutput={setOutput} />
+          <SubmitCopyForm onOutput={setOutput} />
+          <GenerateEmailsForm onOutput={setOutput} />
+          <RunTestsForm onOutput={setOutput} />
+        </div>
         <OutputSection text={output} />
-      </div>
+      </main>
+      <div className="max-w-3xl mx-auto">
+
     </div>
   );
 };
