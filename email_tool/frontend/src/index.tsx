@@ -160,6 +160,7 @@ const App: React.FC = () => {
         </div>
         <OutputSection text={output} />
       </main>
+
     </div>
   );
 };
