@@ -1,19 +1,22 @@
 import asyncio
+import re
 from playwright.async_api import async_playwright
 
 async def run(html: str):
+    issues = []
+    if re.search(r"{{\s*\w+\s*}}", html):
+        issues.append('Unreplaced placeholders')
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         page = await browser.new_page()
         await page.set_content(html)
         links = await page.query_selector_all('a')
-        broken = []
         for link in links:
             url = await link.get_attribute('href')
             if not url:
-                broken.append('missing href')
+                issues.append('missing href')
         await browser.close()
-        return {'passed': len(broken) == 0, 'issues': broken}
+    return {'passed': len(issues) == 0, 'issues': issues}
 
 if __name__ == '__main__':
     import sys, json
