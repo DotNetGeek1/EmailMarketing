@@ -263,11 +263,12 @@ class TestBuilderService:
         screenshot_path = None
         
         try:
-            # Try sync API first (might work better in FastAPI context)
-            from playwright.sync_api import sync_playwright
-            import threading
+            # Use subprocess to run Playwright completely outside FastAPI context
+            import subprocess
+            import json
+            import sys
             
-            logs.append("Starting Playwright test execution...")
+            logs.append("Starting Playwright test execution via subprocess...")
             
             # Create temporary HTML file
             logs.append("Creating temporary HTML file...")
@@ -277,156 +278,135 @@ class TestBuilderService:
             logs.append(f"Temporary HTML file created: {temp_html_path}")
             logs.append(f"HTML content length: {len(str(scenario.html_content))} characters")
             
-            def run_playwright_test_inner():
-                nonlocal screenshot_path
-                browser = None
-                page = None
+            # Create a temporary Python script to run the test
+            test_script_content = f'''
+import sys
+import json
+from playwright.sync_api import sync_playwright
+
+def run_test():
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            
+            file_url = "file:///{temp_html_path.replace(os.sep, '/')}"
+            page.goto(file_url)
+            
+            # Execute test steps
+            steps = {[{"step_order": getattr(step, 'step_order'), "action": getattr(step, 'action'), "selector": getattr(step, 'selector'), "value": getattr(step, 'value'), "attr": getattr(step, 'attr')} for step in steps]}
+            
+            results = []
+            for step in steps:
+                step_order = step["step_order"]
+                action = step["action"]
+                selector = step["selector"]
+                value = step["value"]
+                attr = step["attr"]
                 
-                try:
-                    logs.append("Starting Playwright sync API...")
-                    logs.append("Creating Playwright context...")
-                    
-                    # Try to get more diagnostic information
-                    import sys
-                    logs.append(f"Python version: {sys.version}")
-                    logs.append(f"Platform: {sys.platform}")
-                    
-                    with sync_playwright() as p:
-                        logs.append("Playwright context created successfully")
-                        
-                        # Launch browser with Windows-specific options
-                        logs.append("Attempting to launch Chromium browser...")
-                        try:
-                            # Try simpler launch first
-                            logs.append("Attempting simple browser launch...")
-                            browser = p.chromium.launch(headless=True)
-                            logs.append("Chromium browser launched successfully (simple)")
-                        except Exception as simple_error:
-                            logs.append(f"Simple browser launch failed: {str(simple_error)}")
-                            logs.append("Trying with Windows-specific arguments...")
-                            try:
-                                browser = p.chromium.launch(
-                                    headless=True,
-                                    args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-                                )
-                                logs.append("Chromium browser launched successfully (with args)")
-                            except Exception as browser_error:
-                                logs.append(f"Browser launch with args failed: {str(browser_error)}")
-                                raise browser_error
-                        
-                        logs.append("Creating new page...")
-                        try:
-                            page = browser.new_page()
-                            logs.append("New page created successfully")
-                        except Exception as page_error:
-                            logs.append(f"Page creation failed: {str(page_error)}")
-                            raise page_error
-                        
-                        logs.append("Browser and page setup completed")
-                        
-                        # Navigate to the HTML file
-                        file_url = f"file:///{temp_html_path.replace(os.sep, '/')}"
-                        logs.append(f"Attempting to navigate to: {file_url}")
-                        page.goto(file_url)
-                        logs.append(f"Successfully navigated to test page")
-                        
-                        # Log the page content for debugging
-                        page_content = page.content()
-                        logs.append(f"Page content length: {len(page_content)} characters")
-                        
-                        # Execute test steps
-                        for step in steps:
-                            step_order = getattr(step, 'step_order')
-                            action = getattr(step, 'action')
-                            selector = getattr(step, 'selector')
-                            value = getattr(step, 'value')
-                            attr = getattr(step, 'attr')
-                            
-                            step_log = f"Executing step {step_order}: {action}"
-                            if selector:
-                                step_log += f" on {selector}"
-                            logs.append(step_log)
-                            
-                            if action == 'click':
-                                page.click(f'[data-testid="{selector}"]')
-                            elif action == 'expectText':
-                                text_content = page.text_content(f'[data-testid="{selector}"]')
-                                if value and value not in text_content:
-                                    raise Exception(f"Expected text '{value}' not found in element '{selector}'")
-                            elif action == 'expectAttr':
-                                attr_value = page.get_attribute(f'[data-testid="{selector}"]', attr)
-                                if attr_value != value:
-                                    raise Exception(f"Expected attribute '{attr}' to be '{value}', got '{attr_value}'")
-                            elif action == 'expectUrlContains':
-                                current_url = page.url
-                                if value and value not in current_url:
-                                    raise Exception(f"Expected URL to contain '{value}', got '{current_url}'")
-                            elif action == 'waitForSelector':
-                                page.wait_for_selector(f'[data-testid="{selector}"]')
-                            elif action == 'fill':
-                                page.fill(f'[data-testid="{selector}"]', value)
-                            else:
-                                raise Exception(f"Unknown action: {action}")
-                            
-                            logs.append(f"Step {step_order} completed successfully")
-                        
-                        browser.close()
-                        logs.append("Test completed successfully")
-                        
-                except Exception as e:
-                    logs.append(f"Test execution failed: {str(e)}")
-                    # Try to take screenshot on failure
-                    try:
-                        if page and browser:
-                            screenshot_dir = os.path.join(os.getcwd(), 'static', 'screenshots')
-                            os.makedirs(screenshot_dir, exist_ok=True)
-                            screenshot_filename = f"test_failure_{scenario_id}_{int(time.time())}.png"
-                            screenshot_path = os.path.join(screenshot_dir, screenshot_filename)
-                            page.screenshot(path=screenshot_path)
-                            logs.append(f"Screenshot saved to {screenshot_path}")
-                        else:
-                            logs.append("Cannot take screenshot - browser or page not available")
-                            screenshot_path = None
-                    except Exception as screenshot_error:
-                        screenshot_path = None
-                        logs.append(f"Failed to take screenshot: {str(screenshot_error)}")
-                    raise e
-                finally:
-                    # Clean up browser
-                    try:
-                        if browser:
-                            browser.close()
-                    except:
-                        pass
-                    # Clean up temporary file
-                    try:
-                        if os.path.exists(temp_html_path):
-                            os.unlink(temp_html_path)
-                    except:
-                        pass
-            
-            # Run sync test in thread to avoid blocking
-            test_exception = None
-            
-            def run_playwright_test():
-                nonlocal test_exception
-                try:
-                    run_playwright_test_inner()
-                except Exception as e:
-                    test_exception = e
-            
-            thread = threading.Thread(target=run_playwright_test)
-            thread.start()
-            thread.join(timeout=30)  # 30 second timeout
-            
-            if thread.is_alive():
-                raise Exception("Test execution timed out after 30 seconds")
-            
-            if test_exception:
-                raise test_exception
+                print(f"Executing step {{step_order}}: {{action}} on {{selector}}")
                 
-            status = 'passed'
-            error_message = None
+                if action == 'click':
+                    page.click(f'[data-testid="{{selector}}"]')
+                elif action == 'expectText':
+                    text_content = page.text_content(f'[data-testid="{{selector}}"]')
+                    # Strip whitespace for comparison
+                    text_content_clean = text_content.strip()
+                    print(f"Found text: '{{text_content}}'")
+                    print(f"Cleaned text: '{{text_content_clean}}'")
+                    print(f"Expected text: '{{value}}'")
+                    if value and value != text_content_clean:
+                        raise Exception(f"Expected text '{{value}}' does not match '{{text_content_clean}}' in element '{{selector}}'")
+                elif action == 'expectAttr':
+                    attr_value = page.get_attribute(f'[data-testid="{{selector}}"]', attr)
+                    print(f"Found attribute {{attr}}: '{{attr_value}}'")
+                    print(f"Expected attribute {{attr}}: '{{value}}'")
+                    if attr_value != value:
+                        raise Exception(f"Expected attribute '{{attr}}' to be '{{value}}', got '{{attr_value}}'")
+                elif action == 'expectUrlContains':
+                    current_url = page.url
+                    print(f"Current URL: '{{current_url}}'")
+                    print(f"Expected URL to contain: '{{value}}'")
+                    if value and value not in current_url:
+                        raise Exception(f"Expected URL to contain '{{value}}', got '{{current_url}}'")
+                elif action == 'waitForSelector':
+                    page.wait_for_selector(f'[data-testid="{{selector}}"]')
+                elif action == 'fill':
+                    page.fill(f'[data-testid="{{selector}}"]', value)
+                else:
+                    raise Exception(f"Unknown action: {{action}}")
+                
+                print(f"Step {{step_order}} completed successfully")
+                results.append({{"step": step_order, "status": "passed"}})
+            
+            browser.close()
+            return {{"status": "passed", "results": results}}
+            
+    except Exception as e:
+        print(f"Test failed with error: {{str(e)}}")
+        return {{"status": "failed", "error": str(e)}}
+
+if __name__ == "__main__":
+    result = run_test()
+    print(json.dumps(result))
+'''
+            
+            # Write the test script to a temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+                f.write(test_script_content)
+                test_script_path = f.name
+            
+            logs.append(f"Test script created: {test_script_path}")
+            
+            # Run the test script
+            logs.append("Executing test script...")
+            result = subprocess.run([sys.executable, test_script_path], 
+                                  capture_output=True, text=True, timeout=30)
+            
+            logs.append(f"Subprocess completed with return code: {result.returncode}")
+            # Extract debug output and JSON result
+            stdout_lines = result.stdout.strip().split('\n')
+            debug_output = []
+            json_result = None
+            
+            for line in stdout_lines:
+                if line.startswith('{') and line.endswith('}'):
+                    json_result = line
+                else:
+                    debug_output.append(line)
+            
+            logs.append("Debug output from subprocess:")
+            for line in debug_output:
+                logs.append(f"  {line}")
+            
+            logs.append(f"Subprocess stderr: {result.stderr}")
+            
+            if result.returncode == 0 and json_result:
+                try:
+                    test_result = json.loads(json_result)
+                    if test_result["status"] == "passed":
+                        status = 'passed'
+                        error_message = None
+                        logs.append("Test completed successfully via subprocess")
+                    else:
+                        status = 'failed'
+                        error_message = test_result.get("error", "Unknown error")
+                        logs.append(f"Test failed via subprocess: {error_message}")
+                except json.JSONDecodeError:
+                    status = 'failed'
+                    error_message = "Failed to parse test results"
+                    logs.append("Failed to parse test results from subprocess")
+            else:
+                status = 'failed'
+                error_message = f"Subprocess failed with return code {result.returncode}"
+                logs.append(f"Subprocess failed: {result.stderr}")
+            
+            # Clean up temporary files
+            try:
+                os.unlink(test_script_path)
+                os.unlink(temp_html_path)
+            except:
+                pass
                 
         except Exception as e:
             logs.append(f"Test execution failed: {str(e)}")
