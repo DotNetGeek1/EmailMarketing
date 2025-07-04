@@ -3,6 +3,7 @@ import { useCampaign, CopyEntry } from '../../contexts/CampaignContext';
 import { useToast } from '../../contexts/ToastContext';
 import LoadingSpinner from '../LoadingSpinner';
 import PlaceholderBadge from '../PlaceholderBadge';
+import Modal from '../Modal';
 import { apiUrl } from '../../config';
 
 interface Tag {
@@ -14,7 +15,7 @@ interface Tag {
 
 interface CopyData {
   [tagName: string]: {
-    [language: string]: string;
+    [locale: string]: { value: string; status: string; id?: number; comments?: any[] };
   };
 }
 
@@ -22,12 +23,16 @@ const CampaignCopy: React.FC = () => {
   const { currentCampaign, copyEntries, setCopyEntries, templates } = useCampaign();
   const { showSuccess, showError } = useToast();
   const [tags, setTags] = useState<Tag[]>([]);
-  const [languages, setLanguages] = useState<string[]>(['en']);
+  const [locales, setLocales] = useState<string[]>(['en']);
   const [copyData, setCopyData] = useState<CopyData>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const availableLanguages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh'];
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [selectedCopyEntry, setSelectedCopyEntry] = useState<{ tagName: string; locale: string } | null>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [addingComment, setAddingComment] = useState(false);
 
   useEffect(() => {
     fetchTags();
@@ -54,7 +59,7 @@ const CampaignCopy: React.FC = () => {
 
   const processCopyEntries = () => {
     const newCopyData: CopyData = {};
-    const usedLanguages = new Set<string>();
+    const usedLocales = new Set<string>();
 
     // Get all unique tags from templates
     const templateTags = new Set<string>();
@@ -74,64 +79,80 @@ const CampaignCopy: React.FC = () => {
       if (!newCopyData[entry.key]) {
         newCopyData[entry.key] = {};
       }
-      newCopyData[entry.key][entry.language] = entry.value;
-      usedLanguages.add(entry.language);
+      newCopyData[entry.key][entry.locale] = {
+        value: entry.value,
+        status: entry.status,
+        id: entry.id,
+        comments: entry.comments || [],
+      };
+      usedLocales.add(entry.locale);
     });
 
     setCopyData(newCopyData);
-    setLanguages(Array.from(usedLanguages).sort());
+    setLocales(Array.from(usedLocales).sort());
   };
 
-  const addLanguage = () => {
-    const unusedLanguages = availableLanguages.filter(lang => !languages.includes(lang));
-    if (unusedLanguages.length > 0) {
-      setLanguages([...languages, unusedLanguages[0]]);
+  const addLocale = () => {
+    const newLocale = prompt('Enter new locale code (e.g., en-GB, fr-CA):');
+    if (newLocale && !locales.includes(newLocale)) {
+      setLocales([...locales, newLocale]);
     }
   };
 
-  const removeLanguage = (languageToRemove: string) => {
-    if (languages.length > 1) {
-      setLanguages(languages.filter(lang => lang !== languageToRemove));
-      
-      // Remove copy data for this language
+  const removeLocale = (localeToRemove: string) => {
+    if (locales.length > 1) {
+      setLocales(locales.filter(l => l !== localeToRemove));
       const newCopyData = { ...copyData };
       Object.keys(newCopyData).forEach(tagName => {
-        if (newCopyData[tagName][languageToRemove]) {
-          delete newCopyData[tagName][languageToRemove];
+        if (newCopyData[tagName][localeToRemove]) {
+          delete newCopyData[tagName][localeToRemove];
         }
       });
       setCopyData(newCopyData);
     }
   };
 
-  const updateCopyValue = (tagName: string, language: string, value: string) => {
+  const updateCopyValue = (tagName: string, locale: string, value: string) => {
     setCopyData(prev => ({
       ...prev,
       [tagName]: {
         ...prev[tagName],
-        [language]: value
-      }
+        [locale]: {
+          ...prev[tagName][locale],
+          value,
+        },
+      },
+    }));
+  };
+
+  const updateCopyStatus = (tagName: string, locale: string, status: string) => {
+    setCopyData(prev => ({
+      ...prev,
+      [tagName]: {
+        ...prev[tagName],
+        [locale]: {
+          ...prev[tagName][locale],
+          status,
+        },
+      },
     }));
   };
 
   const saveAllCopy = async () => {
     if (!currentCampaign) return;
-    
     setSaving(true);
     try {
       const promises: Promise<any>[] = [];
-      
-      // Collect all copy entries to save
       Object.keys(copyData).forEach(tagName => {
-        Object.keys(copyData[tagName]).forEach(language => {
-          const value = copyData[tagName][language];
-          if (value && value.trim()) {
+        Object.keys(copyData[tagName]).forEach(locale => {
+          const entry = copyData[tagName][locale];
+          if (entry.value && entry.value.trim()) {
             const formData = new FormData();
             formData.append('key', tagName);
-            formData.append('value', value.trim());
-            
+            formData.append('value', entry.value.trim());
+            formData.append('status', entry.status || 'Draft');
             promises.push(
-              fetch(apiUrl(`/copy/${currentCampaign.id}/${language}`), {
+              fetch(apiUrl(`/copy/${currentCampaign.id}/${locale}`), {
                 method: 'POST',
                 body: formData,
               })
@@ -139,31 +160,81 @@ const CampaignCopy: React.FC = () => {
           }
         });
       });
-
       await Promise.all(promises);
-      
-      // Refresh copy entries from backend
       const copyResponse = await fetch(apiUrl(`/copy/${currentCampaign.id}`));
       if (copyResponse.ok) {
         const copyData = await copyResponse.json();
         setCopyEntries(copyData);
       }
-      
       showSuccess('Copy Saved', 'All copy entries have been saved successfully.');
     } catch (error) {
-      console.error('Error saving copy:', error);
       showError('Save Failed', 'Failed to save copy entries. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const getLanguageName = (code: string) => {
-    const languageNames: { [key: string]: string } = {
-      en: 'English', es: 'Spanish', fr: 'French', de: 'German',
-      it: 'Italian', pt: 'Portuguese', ja: 'Japanese', ko: 'Korean', zh: 'Chinese'
-    };
-    return languageNames[code] || code;
+  const openCommentsModal = async (tagName: string, locale: string) => {
+    setSelectedCopyEntry({ tagName, locale });
+    setShowCommentsModal(true);
+    setNewComment('');
+    await fetchComments(tagName, locale);
+  };
+
+  const fetchComments = async (tagName: string, locale: string) => {
+    if (!currentCampaign) return;
+    
+    setLoadingComments(true);
+    try {
+      const response = await fetch(apiUrl(`/copy/${currentCampaign.id}/${locale}/${tagName}/comments`));
+      if (response.ok) {
+        const commentsData = await response.json();
+        setComments(commentsData);
+      } else {
+        setComments([]);
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      setComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const addComment = async () => {
+    if (!currentCampaign || !selectedCopyEntry || !newComment.trim()) return;
+    
+    setAddingComment(true);
+    try {
+      const formData = new FormData();
+      formData.append('comment', newComment.trim());
+      
+      const response = await fetch(apiUrl(`/copy/${currentCampaign.id}/${selectedCopyEntry.locale}/${selectedCopyEntry.tagName}/comments`), {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (response.ok) {
+        const newCommentData = await response.json();
+        setComments(prev => [...prev, newCommentData]);
+        setNewComment('');
+        showSuccess('Comment Added', 'Comment has been added successfully.');
+      } else {
+        throw new Error('Failed to add comment');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      showError('Comment Failed', 'Failed to add comment. Please try again.');
+    } finally {
+      setAddingComment(false);
+    }
+  };
+
+  const closeCommentsModal = () => {
+    setShowCommentsModal(false);
+    setSelectedCopyEntry(null);
+    setComments([]);
+    setNewComment('');
   };
 
   if (!currentCampaign) return null;
@@ -196,106 +267,118 @@ const CampaignCopy: React.FC = () => {
           </p>
         </div>
         <div className="flex space-x-3">
-          <button
-            onClick={addLanguage}
-            disabled={languages.length >= availableLanguages.length}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Language
-          </button>
-          <button
-            onClick={saveAllCopy}
-            disabled={saving}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 transition-colors"
-          >
-            {saving ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Saving...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Save All Copy
-              </>
-            )}
-          </button>
+          <button onClick={addLocale} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">Add Locale</button>
         </div>
       </div>
-
-      {tagList.length === 0 ? (
-        <div className="text-center py-12">
-          <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No templates found</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Upload a template to start managing copy.</p>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Tags
-                  </th>
-                  {languages.map(language => (
-                    <th key={language} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      <div className="flex items-center justify-between">
-                        <span>{getLanguageName(language)}</span>
-                        {languages.length > 1 && (
-                          <button
-                            onClick={() => removeLanguage(language)}
-                            className="text-gray-400 hover:text-red-500 transition-colors"
-                            title={`Remove ${getLanguageName(language)}`}
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {tagList.map(tagName => (
-                  <tr key={tagName} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <PlaceholderBadge 
-                        value={tagName} 
-                        isTag={true}
-                        color={tags.find(t => t.name === tagName)?.color}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead>
+            <tr>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tag</th>
+              {locales.map(locale => (
+                <th key={locale} className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {locale}
+                  <button onClick={() => removeLocale(locale)} className="ml-2 text-xs text-red-500">&times;</button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tagList.map(tagName => (
+              <tr key={tagName}>
+                <td className="px-4 py-2 font-mono text-xs text-gray-700 dark:text-gray-200">
+                  <PlaceholderBadge value={tagName} isTag={true} />
+                </td>
+                {locales.map(locale => {
+                  const entry = copyData[tagName]?.[locale] || { value: '', status: 'Draft' };
+                  return (
+                    <td key={locale} className="px-4 py-2">
+                      <textarea
+                        className="w-full border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900"
+                        value={entry.value}
+                        onChange={e => updateCopyValue(tagName, locale, e.target.value)}
+                        rows={2}
                       />
+                      <div className="flex items-center mt-1 space-x-2">
+                        <select
+                          value={entry.status}
+                          onChange={e => updateCopyStatus(tagName, locale, e.target.value)}
+                          className="border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs bg-white dark:bg-gray-900"
+                        >
+                          <option value="Draft">Draft</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Approved">Approved</option>
+                        </select>
+                        <button onClick={() => openCommentsModal(tagName, locale)} className="ml-2 text-xs text-blue-500">Comments</button>
+                      </div>
                     </td>
-                    {languages.map(language => (
-                      <td key={language} className="px-6 py-4">
-                        <textarea
-                          value={copyData[tagName]?.[language] || ''}
-                          onChange={(e) => updateCopyValue(tagName, language, e.target.value)}
-                          placeholder={`Enter ${getLanguageName(language)} copy for ${tagName}`}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white text-sm resize-none"
-                          rows={2}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex justify-end">
+        <button
+          onClick={saveAllCopy}
+          disabled={saving}
+          className="px-6 py-2 bg-blue-600 text-white rounded shadow disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : 'Save All'}
+        </button>
+      </div>
+
+      {/* Comments Modal */}
+      <Modal
+        title={`Comments for ${selectedCopyEntry?.tagName} (${selectedCopyEntry?.locale})`}
+        isOpen={showCommentsModal}
+        onClose={closeCommentsModal}
+      >
+        <div className="space-y-4">
+          {/* Comments List */}
+          <div className="max-h-64 overflow-y-auto space-y-3">
+            {loadingComments ? (
+              <div className="flex justify-center py-4">
+                <LoadingSpinner />
+              </div>
+            ) : comments.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No comments yet</p>
+            ) : (
+              comments.map((comment, index) => (
+                <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded p-3">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm text-gray-900 dark:text-white">{comment.comment}</p>
+                    <span className="text-xs text-gray-500 ml-2">
+                      {new Date(comment.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          {/* Add Comment Form */}
+          <div className="border-t pt-4">
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="w-full border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-sm bg-white dark:bg-gray-900 resize-none"
+              rows={3}
+            />
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={addComment}
+                disabled={!newComment.trim() || addingComment}
+                className="px-4 py-2 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+              >
+                {addingComment ? 'Adding...' : 'Add Comment'}
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };
