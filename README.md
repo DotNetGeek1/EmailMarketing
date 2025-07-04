@@ -1,4 +1,4 @@
-# Email Campaign Builder & Validator
+ # Email Campaign Builder & Validator
 
 An internal web tool to manage multilingual email campaigns using HTML templates with dynamic placeholders. Designed for in-house teams, with optional client-provided copy.
 
