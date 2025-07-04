@@ -7,6 +7,7 @@ from ..services.copy_service import CopyService
 from ..services.email_service import EmailService
 from ..services.test_service import TestService
 from ..services.tag_service import TagService
+from ..services.test_builder_service import TestBuilderService
 from pydantic import BaseModel
 from typing import Optional
 import os
@@ -22,6 +23,7 @@ copy_service = CopyService()
 email_service = EmailService()
 test_service = TestService()
 tag_service = TagService()
+test_builder_service = TestBuilderService()
 
 class TagCreate(BaseModel):
     name: str
@@ -284,4 +286,144 @@ async def get_generated_emails(campaign_id: int, db: AsyncSession = Depends(get_
             'thumbnail_url': thumbnail_url
         })
     return results
+
+
+# Test Builder API Endpoints
+
+class TestStepCreate(BaseModel):
+    step_order: int
+    action: str
+    selector: Optional[str] = None
+    value: Optional[str] = None
+    attr: Optional[str] = None
+    description: Optional[str] = None
+
+class TestStepUpdate(BaseModel):
+    step_order: int
+    action: str
+    selector: Optional[str] = None
+    value: Optional[str] = None
+    attr: Optional[str] = None
+    description: Optional[str] = None
+
+@router.post('/test-builder/scenario')
+async def create_test_scenario(
+    name: str = Form(...),
+    description: str = Form(...),
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new test scenario with uploaded HTML file"""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail='No file provided')
+    
+    try:
+        content = (await file.read()).decode('utf-8')
+        scenario = await test_builder_service.create_test_scenario(
+            db, name, description, content, file.filename
+        )
+        return {
+            'id': scenario.id,
+            'name': scenario.name,
+            'description': scenario.description,
+            'html_filename': scenario.html_filename,
+            'created_at': scenario.created_at.isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get('/test-builder/scenarios')
+async def get_test_scenarios(db: AsyncSession = Depends(get_db)):
+    """Get all test scenarios with step counts and latest results"""
+    scenarios = await test_builder_service.get_test_scenarios(db)
+    return scenarios
+
+@router.get('/test-builder/scenario/{scenario_id}')
+async def get_test_scenario(scenario_id: int, db: AsyncSession = Depends(get_db)):
+    """Get a specific test scenario with all its steps and results"""
+    scenario = await test_builder_service.get_test_scenario(db, scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail='Test scenario not found')
+    return scenario
+
+@router.post('/test-builder/scenario/{scenario_id}/extract-testids')
+async def extract_data_testids(scenario_id: int, db: AsyncSession = Depends(get_db)):
+    """Extract data-testid attributes from the HTML content of a scenario"""
+    scenario = await test_builder_service.get_test_scenario(db, scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail='Test scenario not found')
+    
+    testids = await test_builder_service.extract_data_testids(scenario['html_content'])
+    return {'testids': testids}
+
+@router.post('/test-builder/scenario/{scenario_id}/step')
+async def add_test_step(
+    scenario_id: int,
+    step_data: TestStepCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a test step to a scenario"""
+    try:
+        step = await test_builder_service.add_test_step(
+            db, scenario_id, step_data.step_order, step_data.action,
+            step_data.selector, step_data.value, step_data.attr, step_data.description
+        )
+        return {
+            'id': step.id,
+            'step_order': step.step_order,
+            'action': step.action,
+            'selector': step.selector,
+            'value': step.value,
+            'attr': step.attr,
+            'description': step.description
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put('/test-builder/step/{step_id}')
+async def update_test_step(
+    step_id: int,
+    step_data: TestStepUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a test step"""
+    step = await test_builder_service.update_test_step(
+        db, step_id, step_data.step_order, step_data.action,
+        step_data.selector, step_data.value, step_data.attr, step_data.description
+    )
+    if not step:
+        raise HTTPException(status_code=404, detail='Test step not found')
+    return {
+        'id': step.id,
+        'step_order': step.step_order,
+        'action': step.action,
+        'selector': step.selector,
+        'value': step.value,
+        'attr': step.attr,
+        'description': step.description
+    }
+
+@router.delete('/test-builder/step/{step_id}')
+async def delete_test_step(step_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a test step"""
+    success = await test_builder_service.delete_test_step(db, step_id)
+    if not success:
+        raise HTTPException(status_code=404, detail='Test step not found')
+    return {'message': 'Test step deleted successfully'}
+
+@router.delete('/test-builder/scenario/{scenario_id}')
+async def delete_test_scenario(scenario_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a test scenario and all its steps and results"""
+    success = await test_builder_service.delete_test_scenario(db, scenario_id)
+    if not success:
+        raise HTTPException(status_code=404, detail='Test scenario not found')
+    return {'message': 'Test scenario deleted successfully'}
+
+@router.post('/test-builder/scenario/{scenario_id}/run')
+async def run_test_scenario(scenario_id: int, db: AsyncSession = Depends(get_db)):
+    """Run a test scenario and return results"""
+    result = await test_builder_service.run_test_scenario(db, scenario_id)
+    if 'error' in result:
+        raise HTTPException(status_code=400, detail=result['error'])
+    return result
 

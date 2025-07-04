@@ -11,8 +11,9 @@ import Campaigns from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
 import Testing from './pages/Testing';
 import TagManagement from './pages/TagManagement';
+import TestBuilder from './pages/TestBuilder';
 
-type Page = 'dashboard' | 'campaigns' | 'campaign-detail' | 'testing' | 'tags';
+type Page = 'dashboard' | 'campaigns' | 'campaign-detail' | 'testing' | 'tags' | 'test-builder';
 
 const MainApp: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -45,6 +46,8 @@ const MainApp: React.FC = () => {
         return <Testing />;
       case 'tags':
         return <TagManagement />;
+      case 'test-builder':
+        return <TestBuilder />;
       default:
         return <Dashboard />;
     }
