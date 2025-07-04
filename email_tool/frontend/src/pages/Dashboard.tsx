@@ -85,15 +85,15 @@ const Dashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Welcome to the Email Campaign Tool. Manage your multilingual email campaigns with ease.
         </p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg transition-colors duration-200">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -105,15 +105,15 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Campaigns</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.totalCampaigns}</dd>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Campaigns</dt>
+                  <dd className="text-lg font-medium text-gray-900 dark:text-white">{stats.totalCampaigns}</dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg transition-colors duration-200">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -125,15 +125,15 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Templates</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.totalTemplates}</dd>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Templates</dt>
+                  <dd className="text-lg font-medium text-gray-900 dark:text-white">{stats.totalTemplates}</dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg transition-colors duration-200">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -145,15 +145,15 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Languages</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.totalLanguages}</dd>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Languages</dt>
+                  <dd className="text-lg font-medium text-gray-900 dark:text-white">{stats.totalLanguages}</dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg transition-colors duration-200">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -165,8 +165,8 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Recent Tests</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.recentTests}</dd>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Recent Tests</dt>
+                  <dd className="text-lg font-medium text-gray-900 dark:text-white">{stats.recentTests}</dd>
                 </dl>
               </div>
             </div>
@@ -176,21 +176,21 @@ const Dashboard: React.FC = () => {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action, index) => (
             <button
               key={index}
               onClick={action.action}
-              className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow text-left"
+              className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200 text-left"
             >
               <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mb-4`}>
                 <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={action.icon} />
                 </svg>
               </div>
-              <h3 className="text-sm font-medium text-gray-900">{action.title}</h3>
-              <p className="text-sm text-gray-500 mt-1">{action.description}</p>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">{action.title}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{action.description}</p>
             </button>
           ))}
         </div>
@@ -198,29 +198,29 @@ const Dashboard: React.FC = () => {
 
       {/* Recent Campaigns */}
       <div>
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Recent Campaigns</h2>
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Campaigns</h2>
+        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md transition-colors duration-200">
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
             {campaigns.map((campaign) => (
               <li key={campaign.id}>
                 <div className="px-4 py-4 sm:px-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                           </svg>
                         </div>
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{campaign.name}</div>
-                        <div className="text-sm text-gray-500">Created {new Date(campaign.created_at).toLocaleDateString()}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{campaign.name}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Created {new Date(campaign.created_at).toLocaleDateString()}</div>
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <button className="text-sm text-blue-600 hover:text-blue-800">View</button>
-                      <button className="text-sm text-gray-600 hover:text-gray-800">Edit</button>
+                      <button className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">View</button>
+                      <button className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300">Edit</button>
                     </div>
                   </div>
                 </div>

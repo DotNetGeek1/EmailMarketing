@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
@@ -31,24 +32,26 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-      
-      <div className="flex">
-        <Sidebar 
-          isOpen={sidebarOpen} 
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
-          onClose={() => setSidebarOpen(false)}
-        />
+    <ThemeProvider>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         
-        <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto">
-            {renderPage()}
-          </div>
-        </main>
+        <div className="flex">
+          <Sidebar 
+            isOpen={sidebarOpen} 
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            onClose={() => setSidebarOpen(false)}
+          />
+          
+          <main className="flex-1 p-6">
+            <div className="max-w-7xl mx-auto">
+              {renderPage()}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </ThemeProvider>
   );
 };
 

@@ -28,13 +28,13 @@ const FormField: React.FC<FormFieldProps> = ({
 }) => {
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       {type === 'textarea' ? (
         <textarea
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           value={value}
           onChange={onChange}
           name={name}
@@ -44,7 +44,7 @@ const FormField: React.FC<FormFieldProps> = ({
         />
       ) : type === 'select' ? (
         <select
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           value={value}
           onChange={onChange}
           name={name}
@@ -59,7 +59,7 @@ const FormField: React.FC<FormFieldProps> = ({
       ) : type === 'file' ? (
         <input
           type="file"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:bg-gray-100 dark:file:bg-gray-600 file:border-0 file:text-gray-700 dark:file:text-gray-300"
           onChange={onChange}
           name={name}
           accept={accept}
@@ -69,7 +69,7 @@ const FormField: React.FC<FormFieldProps> = ({
       ) : (
         <input
           type={type}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           value={value}
           onChange={onChange}
           name={name}
