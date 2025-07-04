@@ -7,7 +7,7 @@ import Modal from '../Modal';
 
 interface GeneratedEmail {
   id: number;
-  language: string;
+  locale: string;
   html_content: string;
   generated_at: string;
   thumbnail_url?: string;
@@ -20,6 +20,11 @@ const CampaignEmails: React.FC = () => {
   const [generatedEmails, setGeneratedEmails] = useState<GeneratedEmail[]>([]);
   const [previewEmail, setPreviewEmail] = useState<GeneratedEmail | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [selectedLocales, setSelectedLocales] = useState<string[]>([]);
+  const [showLocaleSelector, setShowLocaleSelector] = useState(false);
+
+  // Get available locales from copy entries
+  const availableLocales = Array.from(new Set(copyEntries.map(entry => entry.locale))).sort();
 
   if (!currentCampaign) return null;
 
@@ -36,23 +41,38 @@ const CampaignEmails: React.FC = () => {
       return;
     }
 
+    // If no locales selected, show locale selector
+    if (selectedLocales.length === 0) {
+      setShowLocaleSelector(true);
+      return;
+    }
+
     setGenerating(true);
     try {
-      const response = await fetch(apiUrl(`/generate/${currentCampaign.id}`), {
-        method: 'POST',
+      // Generate emails for each selected locale
+      const promises = selectedLocales.map(locale =>
+        fetch(apiUrl(`/generate/${currentCampaign.id}/${locale}`), {
+          method: 'POST',
+        })
+      );
+
+      const responses = await Promise.all(promises);
+      const results = await Promise.all(responses.map(r => r.json()));
+
+      // Collect all generated emails
+      const allEmails: GeneratedEmail[] = [];
+      results.forEach((result, index) => {
+        if (result.email) {
+          allEmails.push(result.email);
+        }
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.emails) {
-          setGeneratedEmails(result.emails);
-          showSuccess('Emails Generated', `Successfully generated ${result.generated} emails!`);
-        } else {
-          showWarning('No Emails Generated', 'No emails were generated. Check that you have templates and copy for all required languages.');
-        }
+      if (allEmails.length > 0) {
+        setGeneratedEmails(prev => [...prev, ...allEmails]);
+        showSuccess('Emails Generated', `Successfully generated ${allEmails.length} emails for selected locales!`);
+        setSelectedLocales([]); // Reset selection
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to generate emails');
+        showWarning('No Emails Generated', 'No emails were generated. Check that you have templates and copy for the selected locales.');
       }
     } catch (error) {
       console.error('Error generating emails:', error);
@@ -60,6 +80,22 @@ const CampaignEmails: React.FC = () => {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const toggleLocale = (locale: string) => {
+    setSelectedLocales(prev => 
+      prev.includes(locale) 
+        ? prev.filter(l => l !== locale)
+        : [...prev, locale]
+    );
+  };
+
+  const selectAllLocales = () => {
+    setSelectedLocales(availableLocales);
+  };
+
+  const clearLocaleSelection = () => {
+    setSelectedLocales([]);
   };
 
   const getLanguageName = (code: string) => {
@@ -75,7 +111,7 @@ const CampaignEmails: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${currentCampaign.name}_${email.language}.html`;
+    a.download = `${currentCampaign.name}_${email.locale}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -113,6 +149,70 @@ const CampaignEmails: React.FC = () => {
           {generating ? 'Generating...' : 'Generate Emails'}
         </button>
       </div>
+
+      {/* Locale Selection Modal */}
+      <Modal
+        title="Select Locales for Email Generation"
+        isOpen={showLocaleSelector}
+        onClose={() => setShowLocaleSelector(false)}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Select the locales you want to generate emails for:
+          </p>
+          
+          <div className="space-y-2">
+            {availableLocales.map(locale => (
+              <label key={locale} className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={selectedLocales.includes(locale)}
+                  onChange={() => toggleLocale(locale)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                  {getLanguageName(locale)} ({locale})
+                </span>
+              </label>
+            ))}
+          </div>
+          
+          <div className="flex justify-between pt-4 border-t">
+            <div className="space-x-2">
+              <button
+                onClick={selectAllLocales}
+                className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Select All
+              </button>
+              <button
+                onClick={clearLocaleSelection}
+                className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Clear All
+              </button>
+            </div>
+            <div className="space-x-2">
+              <button
+                onClick={() => setShowLocaleSelector(false)}
+                className="px-4 py-2 text-sm bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowLocaleSelector(false);
+                  generateEmails();
+                }}
+                disabled={selectedLocales.length === 0}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                Generate ({selectedLocales.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {/* Generation Status */}
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
@@ -161,7 +261,7 @@ const CampaignEmails: React.FC = () => {
                       </div>
                       <div className="ml-4 flex-1">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {getLanguageName(email.language)} Email
+                          {getLanguageName(email.locale)} Email
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           Generated {new Date(email.generated_at).toLocaleString()}
@@ -210,7 +310,7 @@ const CampaignEmails: React.FC = () => {
 
       {/* Email Preview Modal */}
       <Modal 
-        title={`${previewEmail ? getLanguageName(previewEmail.language) : ''} Email Preview`} 
+        title={`${previewEmail ? getLanguageName(previewEmail.locale) : ''} Email Preview`} 
         isOpen={showPreview} 
         onClose={() => setShowPreview(false)}
         size="xl"

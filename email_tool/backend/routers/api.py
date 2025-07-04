@@ -13,6 +13,7 @@ import os
 from sqlalchemy import select
 from ..models.generated_email import GeneratedEmail
 from ..models.customer import Customer
+from ..models.copy_comment import CopyComment
 
 router = APIRouter()
 
@@ -124,52 +125,62 @@ async def get_campaign_copy(campaign_id: int, db: AsyncSession = Depends(get_db)
         {
             'id': copy.id,
             'campaign_id': copy.campaign_id,
-            'language': copy.language,
+            'locale': copy.locale,
             'key': copy.key,
             'value': copy.value,
+            'status': copy.status,
             'created_at': copy.created_at.isoformat()
         }
         for copy in copies
     ]
 
 
-@router.post('/copy/{campaign_id}/{language}')
+@router.post('/copy/{campaign_id}/{locale}')
 async def submit_copy(
     campaign_id: int,
-    language: str,
+    locale: str,
     key: str = Form(...),
     value: str = Form(...),
+    status: str = Form('Draft'),
     db: AsyncSession = Depends(get_db),
 ):
-    copy = await copy_service.submit_copy(db, campaign_id, language, key, value)
+    copy = await copy_service.submit_copy(db, campaign_id, locale, key, value, status)
     if not copy:
         raise HTTPException(status_code=404, detail='Campaign not found')
     return {'id': copy.id}
 
 
-@router.delete('/copy/{campaign_id}/{language}/{key}')
+@router.put('/copy/{copy_id}/status')
+async def update_copy_status(copy_id: int, status: str = Form(...), db: AsyncSession = Depends(get_db)):
+    updated = await copy_service.update_copy_status(db, copy_id, status)
+    if not updated:
+        raise HTTPException(status_code=404, detail='Copy entry not found')
+    return {'id': copy_id, 'status': status}
+
+
+@router.delete('/copy/{campaign_id}/{locale}/{key}')
 async def delete_copy(
     campaign_id: int,
-    language: str,
+    locale: str,
     key: str,
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a specific copy entry"""
-    success = await copy_service.delete_copy(db, campaign_id, language, key)
+    success = await copy_service.delete_copy(db, campaign_id, locale, key)
     if not success:
         raise HTTPException(status_code=404, detail='Copy entry not found')
     return {'message': 'Copy entry deleted successfully'}
 
 
-@router.delete('/copy/{campaign_id}/{language}')
-async def delete_language_copies(
+@router.delete('/copy/{campaign_id}/{locale}')
+async def delete_locale_copies(
     campaign_id: int,
-    language: str,
+    locale: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete all copy entries for a specific language in a campaign"""
-    count = await copy_service.delete_copies_for_language(db, campaign_id, language)
-    return {'message': f'Deleted {count} copy entries for language {language}'}
+    """Delete all copy entries for a specific locale in a campaign"""
+    count = await copy_service.delete_copies_for_locale(db, campaign_id, locale)
+    return {'message': f'Deleted {count} copy entries for locale {locale}'}
 
 
 @router.post('/generate/{campaign_id}')
@@ -284,4 +295,32 @@ async def get_generated_emails(campaign_id: int, db: AsyncSession = Depends(get_
             'thumbnail_url': thumbnail_url
         })
     return results
+
+@router.get('/copy/{copy_id}/comments')
+async def get_copy_comments(copy_id: int, db: AsyncSession = Depends(get_db)):
+    comments = (await db.execute(select(CopyComment).filter_by(copy_id=copy_id))).scalars().all()
+    return [
+        {
+            'id': c.id,
+            'copy_id': c.copy_id,
+            'comment': c.comment,
+            'created_at': c.created_at.isoformat(),
+            'user': c.user
+        }
+        for c in comments
+    ]
+
+@router.post('/copy/{copy_id}/comments')
+async def add_copy_comment(copy_id: int, comment: str = Form(...), user: str = Form(None), db: AsyncSession = Depends(get_db)):
+    new_comment = CopyComment(copy_id=copy_id, comment=comment, user=user)
+    db.add(new_comment)
+    await db.commit()
+    await db.refresh(new_comment)
+    return {
+        'id': new_comment.id,
+        'copy_id': new_comment.copy_id,
+        'comment': new_comment.comment,
+        'created_at': new_comment.created_at.isoformat(),
+        'user': new_comment.user
+    }
 

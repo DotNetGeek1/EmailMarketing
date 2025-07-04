@@ -39,26 +39,40 @@ class EmailService:
                 ph_res = await db.execute(select(Placeholder.key).filter_by(template_id=template.id))
                 placeholders = {str(row) for row in ph_res.scalars().all()}
                 
-                # Get unique languages from copy entries
-                languages = {c.language for c in copies}
+                # Get unique locales from copy entries
+                locales = {c.locale for c in copies}
                 
-                for lang in languages:
-                    # Get copy entries for this language
-                    lang_copy = {str(c.key): str(c.value) for c in copies if c.language == lang}
+                for locale in locales:
+                    # Get copy entries for this locale
+                    locale_copy = {str(c.key): str(c.value) for c in copies if c.locale == locale}
                     
-                    # Check if we have all required placeholders for this language
-                    if not placeholders.issubset(set(lang_copy.keys())):
+                    # Fallback: if missing, try base language (e.g., en-GB -> en)
+                    if '-' in locale:
+                        base_lang = locale.split('-')[0]
+                        base_copy = {str(c.key): str(c.value) for c in copies if c.locale == base_lang}
+                        for k, v in base_copy.items():
+                            if k not in locale_copy:
+                                locale_copy[k] = v
+                    # Fallback: if still missing, try 'en' as global default
+                    if locale != 'en':
+                        en_copy = {str(c.key): str(c.value) for c in copies if c.locale == 'en'}
+                        for k, v in en_copy.items():
+                            if k not in locale_copy:
+                                locale_copy[k] = v
+                    
+                    # Check if we have all required placeholders for this locale
+                    if not placeholders.issubset(set(locale_copy.keys())):
                         continue
                     
                     try:
                         # Render the template with the copy
                         jinja = JinjaTemplate(str(template.content))
-                        html = jinja.render(**lang_copy)
+                        html = jinja.render(**locale_copy)
                         
                         # Create and save the generated email
                         email = GeneratedEmail(
                             campaign_id=campaign_id,
-                            language=lang,
+                            language=locale,  # keep field name for now
                             html_content=html,
                         )
                         db.add(email)
@@ -85,7 +99,7 @@ class EmailService:
                         # Add to our result list
                         emails.append({
                             'id': email.id,
-                            'language': lang,
+                            'locale': locale,
                             'html_content': html,
                             'generated_at': datetime.utcnow().isoformat(),
                             'thumbnail_url': screenshot_url
@@ -93,7 +107,7 @@ class EmailService:
                         generated_count += 1
                         
                     except Exception as e:
-                        print(f"Error rendering template for language {lang}: {e}")
+                        print(f"Error rendering template for locale {locale}: {e}")
                         continue
             
             await db.commit()

@@ -8,9 +8,10 @@ class LocalizedCopy(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     campaign_id = Column(Integer, ForeignKey('campaign.id'))
-    language = Column(String, nullable=False)
+    locale = Column(String, nullable=False)
     key = Column(String, nullable=False)
     value = Column(Text, nullable=False)
+    status = Column(String, nullable=False, default='Draft')
     created_at = Column(DateTime, default=datetime.utcnow)
 
     campaign = relationship('Campaign', back_populates='copies')

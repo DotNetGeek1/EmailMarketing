@@ -9,10 +9,12 @@ import { useToast } from '../contexts/ToastContext';
 interface CopyEntry {
   id: number;
   campaign_id: number;
-  language: string;
+  locale: string;
   key: string;
   value: string;
   created_at: string;
+  status: string;
+  comments: string;
 }
 
 interface Campaign {
@@ -50,7 +52,7 @@ const CopyManagement: React.FC = () => {
   const [copyValue, setCopyValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [newEntry, setNewEntry] = useState({
-    language: '',
+    locale: '',
     key: '',
     value: ''
   });
@@ -111,7 +113,7 @@ const CopyManagement: React.FC = () => {
 
   const addCopyEntry = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCampaign || !newEntry.language || !newEntry.key || !newEntry.value) return;
+    if (!selectedCampaign || !newEntry.locale || !newEntry.key || !newEntry.value) return;
     
     setSubmitting(true);
     try {
@@ -119,7 +121,7 @@ const CopyManagement: React.FC = () => {
       formData.append('key', newEntry.key);
       formData.append('value', newEntry.value);
 
-      const response = await fetch(apiUrl(`/copy/${selectedCampaign}/${newEntry.language}`), {
+      const response = await fetch(apiUrl(`/copy/${selectedCampaign}/${newEntry.locale}`), {
         method: 'POST',
         body: formData,
       });
@@ -127,7 +129,7 @@ const CopyManagement: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         setCopyEntries(prev => [...prev, result]);
-        setNewEntry({ language: '', key: '', value: '' });
+        setNewEntry({ locale: '', key: '', value: '' });
                  setSelectedCampaign('');
         setSelectedLanguage('');
         setSelectedTag('');
@@ -157,7 +159,7 @@ const CopyManagement: React.FC = () => {
     try {
       const entry = copyEntries.find(e => e.id === id);
       if (!entry) return;
-      const response = await fetch(apiUrl(`/copy/${selectedCampaign}/${entry.language}/${entry.key}`), {
+      const response = await fetch(apiUrl(`/copy/${selectedCampaign}/${entry.locale}/${entry.key}`), {
         method: 'DELETE',
       });
       if (response.ok) {
@@ -284,7 +286,7 @@ const CopyManagement: React.FC = () => {
                             {campaigns.find(c => c.id === entry.campaign_id)?.name || 'Unknown Campaign'}
                           </span>
                           <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">{getLanguageName(entry.language)}</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">{getLanguageName(entry.locale)}</span>
                         </div>
                         <div className="mt-1">
                           <PlaceholderBadge 

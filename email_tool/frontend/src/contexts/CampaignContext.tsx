@@ -23,16 +23,18 @@ export interface Template {
 export interface CopyEntry {
   id: number;
   campaign_id: number;
-  language: string;
+  locale: string;
   key: string;
   value: string;
+  status: string;
+  comments?: any[];
   created_at: string;
 }
 
 export interface GeneratedEmail {
   id: number;
   campaign_id: number;
-  language: string;
+  locale: string;
   html_content: string;
   generated_at: string;
 }

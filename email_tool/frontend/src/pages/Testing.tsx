@@ -8,7 +8,7 @@ import { useToast } from '../contexts/ToastContext';
 interface TestResult {
   id: number;
   campaign_id: number;
-  language: string;
+  locale: string;
   passed: boolean;
   issues: string[];
   tested_at: string;
@@ -77,7 +77,7 @@ const Testing: React.FC = () => {
           {
             id: Date.now(),
             campaign_id: parseInt(selectedCampaign),
-            language: 'en',
+            locale: 'en',
             passed: Math.random() > 0.3,
             issues: Math.random() > 0.3 ? [] : ['Sample issue for testing'],
             tested_at: new Date().toISOString(),
@@ -203,7 +203,7 @@ const Testing: React.FC = () => {
                             {campaigns.find(c => c.id === result.campaign_id)?.name || 'Unknown Campaign'}
                           </span>
                           <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">{getLanguageName(result.language)}</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">{getLanguageName(result.locale)}</span>
                         </div>
                         <div className="mt-1">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -260,8 +260,8 @@ const Testing: React.FC = () => {
               </p>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white">Language</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-300">{getLanguageName(selectedResult.language)}</p>
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white">Locale</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{getLanguageName(selectedResult.locale)}</p>
             </div>
             <div>
               <h4 className="text-sm font-medium text-gray-900 dark:text-white">Status</h4>
