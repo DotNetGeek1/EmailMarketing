@@ -79,7 +79,7 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Test Execution</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Test Execution</h3>
         <button
           onClick={runTest}
           disabled={running}
@@ -158,7 +158,7 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
 
       {results.length > 1 && (
         <div>
-          <h4 className="font-medium mb-2">Test History</h4>
+          <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Test History</h4>
           <div className="space-y-2">
             {results.slice(1).map((result) => (
               <div key={result.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded">

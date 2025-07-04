@@ -79,7 +79,7 @@ const TestScenarioList: React.FC<TestScenarioListProps> = ({ onSelect, selectedS
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Test Scenarios</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Test Scenarios</h2>
         <button
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
           onClick={() => setShowModal(true)}

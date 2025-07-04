@@ -48,6 +48,7 @@ const TestScenarioDetail: React.FC<TestScenarioDetailProps> = ({ scenarioId, onB
     attr: '',
     description: '',
   });
+  const [addSelectorType, setAddSelectorType] = useState<'data-testid' | 'custom'>('data-testid');
 
   useEffect(() => {
     fetchScenario();
@@ -93,12 +94,19 @@ const TestScenarioDetail: React.FC<TestScenarioDetailProps> = ({ scenarioId, onB
       showSuccess('Step added');
       setShowAddStep(false);
       setForm(f => ({ ...f, step_order: (scenario.steps?.length || 0) + 2, selector: '', value: '', attr: '', description: '' }));
+      setAddSelectorType('data-testid');
       fetchScenario();
     } catch (e) {
       showError('Failed to add step');
     } finally {
       setAdding(false);
     }
+  };
+
+  const handleCloseAddStep = () => {
+    setShowAddStep(false);
+    setForm(f => ({ ...f, step_order: (scenario.steps?.length || 0) + 1, selector: '', value: '', attr: '', description: '' }));
+    setAddSelectorType('data-testid');
   };
 
   const handleEditStep = async (updatedStep: TestStep) => {
@@ -141,7 +149,7 @@ const TestScenarioDetail: React.FC<TestScenarioDetailProps> = ({ scenarioId, onB
         <div className="text-sm text-gray-400 mb-2">{scenario.description}</div>
       </div>
       <div className="mb-6">
-        <div className="font-semibold mb-1">Extracted <code>data-testid</code> selectors:</div>
+        <div className="font-semibold mb-1 text-gray-900 dark:text-white">Extracted <code>data-testid</code> selectors:</div>
         <div className="flex flex-wrap gap-2">
           {testids.length === 0 && <span className="text-gray-400">None found</span>}
           {testids.map(t => (
@@ -150,7 +158,7 @@ const TestScenarioDetail: React.FC<TestScenarioDetailProps> = ({ scenarioId, onB
         </div>
       </div>
       <div className="flex justify-between items-center mb-2">
-        <div className="font-semibold">Test Steps</div>
+        <div className="font-semibold text-gray-900 dark:text-white">Test Steps</div>
         <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm" onClick={() => setShowAddStep(true)}>Add Step</button>
       </div>
       <div className="space-y-2 mb-8">
@@ -186,20 +194,161 @@ const TestScenarioDetail: React.FC<TestScenarioDetailProps> = ({ scenarioId, onB
           onDelete={handleDeleteStep}
           onCancel={() => setEditingStep(null)}
           isOpen={true}
+          testids={testids}
         />
       )}
       
-      <Modal isOpen={showAddStep} onClose={() => setShowAddStep(false)} title="Add Test Step">
-        <form onSubmit={handleAddStep} className="space-y-3">
-          <FormField label="Step Order" type="text" value={String(form.step_order)} onChange={e => setForm(f => ({ ...f, step_order: e.target.value }))} required min={1} />
-          <FormField label="Action" type="select" value={form.action} onChange={e => setForm(f => ({ ...f, action: e.target.value }))} required options={ACTIONS} />
-          <FormField label="Selector (data-testid or CSS)" value={form.selector} onChange={e => setForm(f => ({ ...f, selector: e.target.value }))} placeholder="e.g. start-button or .my-class" />
-          <FormField label="Value (for assertions/fill)" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} />
-          <FormField label="Attribute (for expectAttr)" value={form.attr} onChange={e => setForm(f => ({ ...f, attr: e.target.value }))} placeholder="e.g. value, href" />
-          <FormField label="Description (optional)" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-          <div className="flex justify-end">
-            <button type="button" className="mr-2 px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200" onClick={() => setShowAddStep(false)}>Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" disabled={adding}>{adding ? 'Adding...' : 'Add Step'}</button>
+      <Modal isOpen={showAddStep} onClose={handleCloseAddStep} title="Add Test Step" size="lg">
+        <form onSubmit={handleAddStep} className="space-y-4">
+          <FormField 
+            label="Step Order" 
+            type="text" 
+            value={String(form.step_order)} 
+            onChange={e => setForm(f => ({ ...f, step_order: e.target.value }))} 
+            required 
+            min={1} 
+          />
+          
+          <FormField 
+            label="Action" 
+            type="select" 
+            value={form.action} 
+            onChange={e => setForm(f => ({ ...f, action: e.target.value }))} 
+            required 
+            options={ACTIONS} 
+          />
+
+          {/* Selector Type Switch */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Selector Type
+            </label>
+            <div className="flex space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="addSelectorType"
+                  value="data-testid"
+                  checked={addSelectorType === 'data-testid'}
+                  onChange={() => setAddSelectorType('data-testid')}
+                  className="mr-2 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">data-testid</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="addSelectorType"
+                  value="custom"
+                  checked={addSelectorType === 'custom'}
+                  onChange={() => setAddSelectorType('custom')}
+                  className="mr-2 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Custom CSS</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Selector Field */}
+          {addSelectorType === 'data-testid' ? (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                data-testid Selector
+              </label>
+              {testids.length > 0 ? (
+                <>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    value={form.selector}
+                    onChange={e => setForm(f => ({ ...f, selector: e.target.value }))}
+                  >
+                    <option value="">Select a data-testid...</option>
+                    {testids.map(t => (
+                      <option key={t.testid} value={t.testid}>
+                        {t.testid}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Found {testids.length} data-testid attributes in the HTML template
+                  </p>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    value={form.selector}
+                    onChange={e => setForm(f => ({ ...f, selector: e.target.value }))}
+                    placeholder="Enter data-testid value"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    No data-testid attributes found. Enter the value manually or use custom CSS selector.
+                  </p>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                CSS Selector
+              </label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                value={form.selector}
+                onChange={e => setForm(f => ({ ...f, selector: e.target.value }))}
+                placeholder="e.g. .my-class, #my-id, [data-attr='value']"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Use CSS selectors like .class, #id, or [attribute='value']
+              </p>
+            </div>
+          )}
+
+          {/* Conditional Fields */}
+          {form.action === 'expectAttr' && (
+            <FormField 
+              label="Attribute Name" 
+              value={form.attr} 
+              onChange={e => setForm(f => ({ ...f, attr: e.target.value }))} 
+              placeholder="e.g. value, href, class" 
+              required
+            />
+          )}
+
+          {(form.action === 'expectText' || form.action === 'expectAttr' || form.action === 'expectUrlContains' || form.action === 'fill') && (
+            <FormField 
+              label={form.action === 'fill' ? 'Input Value' : 'Expected Value'} 
+              value={form.value} 
+              onChange={e => setForm(f => ({ ...f, value: e.target.value }))} 
+              placeholder={form.action === 'fill' ? 'Text to enter' : 'Expected value'} 
+              required
+            />
+          )}
+
+          <FormField 
+            label="Description (optional)" 
+            value={form.description} 
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))} 
+            placeholder="Brief description of this test step"
+          />
+
+          <div className="flex justify-end gap-2 pt-4">
+            <button 
+              type="button" 
+              className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors" 
+              onClick={handleCloseAddStep}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors" 
+              disabled={adding}
+            >
+              {adding ? 'Adding...' : 'Add Step'}
+            </button>
           </div>
         </form>
       </Modal>
