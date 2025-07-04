@@ -7,3 +7,4 @@ asyncio.run(init_db())
 
 app = FastAPI()
 app.include_router(api.router)
+app.include_router(api.router)
