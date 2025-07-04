@@ -7,8 +7,9 @@ import Campaigns from './pages/Campaigns';
 import Templates from './pages/Templates';
 import CopyManagement from './pages/CopyManagement';
 import Testing from './pages/Testing';
+import TagManagement from './pages/TagManagement';
 
-type Page = 'dashboard' | 'campaigns' | 'templates' | 'copy' | 'testing';
+type Page = 'dashboard' | 'campaigns' | 'templates' | 'copy' | 'testing' | 'tags';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -26,6 +27,8 @@ const App: React.FC = () => {
         return <CopyManagement />;
       case 'testing':
         return <Testing />;
+      case 'tags':
+        return <TagManagement />;
       default:
         return <Dashboard />;
     }

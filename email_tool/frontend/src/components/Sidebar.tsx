@@ -1,6 +1,6 @@
 import React from 'react';
 
-type Page = 'dashboard' | 'campaigns' | 'templates' | 'copy' | 'testing';
+type Page = 'dashboard' | 'campaigns' | 'templates' | 'copy' | 'testing' | 'tags';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,6 +15,7 @@ const navigation: Array<{ name: string; page: Page; icon: string }> = [
   { name: 'Templates', page: 'templates', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
   { name: 'Copy Management', page: 'copy', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
   { name: 'Testing', page: 'testing', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+  { name: 'Tag Management', page: 'tags', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z' },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentPage, onPageChange, onClose }) => {
@@ -33,7 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentPage, onPageChange, on
         fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-screen min-h-screen">
           {/* Logo */}
           <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Email Tool</h2>
