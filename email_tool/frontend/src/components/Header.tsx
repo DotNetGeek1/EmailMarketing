@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useCustomer } from '../contexts/CustomerContext';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -7,6 +8,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { theme, toggleTheme } = useTheme();
+  const { selectedCustomer, clearCustomer } = useCustomer();
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -26,6 +28,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </div>
           
           <div className="flex items-center space-x-4">
+            {selectedCustomer && (
+              <button
+                onClick={clearCustomer}
+                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm hover:bg-gray-300 dark:hover:bg-gray-600"
+                title="Switch Customer"
+              >
+                Switch Customer
+              </button>
+            )}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors duration-200"

@@ -1,4 +1,4 @@
-# Email Campaign Tool - Frontend
+cd # Email Campaign Tool - Frontend
 
 A modern React application for managing multilingual email campaigns with HTML templates, dynamic placeholders, and Playwright testing.
 

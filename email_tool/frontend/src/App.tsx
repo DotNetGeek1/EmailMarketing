@@ -1,19 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { CampaignProvider } from './contexts/CampaignContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { CustomerProvider, useCustomer } from './contexts/CustomerContext';
+import CustomerSelector from './pages/CustomerSelector';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Campaigns from './pages/Campaigns';
-import Templates from './pages/Templates';
-import CopyManagement from './pages/CopyManagement';
+import CampaignDetail from './pages/CampaignDetail';
 import Testing from './pages/Testing';
 import TagManagement from './pages/TagManagement';
 
-type Page = 'dashboard' | 'campaigns' | 'templates' | 'copy' | 'testing' | 'tags';
+type Page = 'dashboard' | 'campaigns' | 'campaign-detail' | 'testing' | 'tags';
 
-const App: React.FC = () => {
+const MainApp: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { selectedCustomer } = useCustomer();
+
+  useEffect(() => {
+    const handleNavigation = (event: CustomEvent) => {
+      setCurrentPage(event.detail as Page);
+    };
+    window.addEventListener('navigate', handleNavigation as EventListener);
+    return () => {
+      window.removeEventListener('navigate', handleNavigation as EventListener);
+    };
+  }, []);
+
+  if (!selectedCustomer) {
+    return <CustomerSelector />;
+  }
 
   const renderPage = () => {
     switch (currentPage) {
@@ -21,10 +39,8 @@ const App: React.FC = () => {
         return <Dashboard />;
       case 'campaigns':
         return <Campaigns />;
-      case 'templates':
-        return <Templates />;
-      case 'copy':
-        return <CopyManagement />;
+      case 'campaign-detail':
+        return <CampaignDetail />;
       case 'testing':
         return <Testing />;
       case 'tags':
@@ -35,27 +51,35 @@ const App: React.FC = () => {
   };
 
   return (
-    <ThemeProvider>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        
-        <div className="flex">
-          <Sidebar 
-            isOpen={sidebarOpen} 
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-            onClose={() => setSidebarOpen(false)}
-          />
-          
-          <main className="flex-1 p-6">
-            <div className="max-w-7xl mx-auto">
-              {renderPage()}
-            </div>
-          </main>
-        </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+      <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+      <div className="flex">
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          onClose={() => setSidebarOpen(false)}
+        />
+        <main className="flex-1 p-6">
+          <div className="max-w-7xl mx-auto">
+            {renderPage()}
+          </div>
+        </main>
       </div>
-    </ThemeProvider>
+    </div>
   );
 };
+
+const App: React.FC = () => (
+  <ThemeProvider>
+    <ToastProvider>
+      <CustomerProvider>
+        <CampaignProvider>
+          <MainApp />
+        </CampaignProvider>
+      </CustomerProvider>
+    </ToastProvider>
+  </ThemeProvider>
+);
 
 export default App; 

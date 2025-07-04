@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import Optional
+import random
 from ..models.tag import Tag
 from ..models.campaign_tag import campaign_tags
 
@@ -12,6 +13,24 @@ class TagService:
         db.add(tag)
         await db.commit()
         await db.refresh(tag)
+        return tag
+
+    async def get_tag_by_name(self, db: AsyncSession, name: str) -> Optional[Tag]:
+        """Get a tag by name"""
+        result = await db.execute(select(Tag).where(Tag.name == name))
+        return result.scalar_one_or_none()
+
+    async def get_or_create_tag(self, db: AsyncSession, name: str, description: Optional[str] = None) -> Tag:
+        """Get a tag by name or create it if it doesn't exist"""
+        tag = await self.get_tag_by_name(db, name)
+        if not tag:
+            # Generate a random color for new tags
+            colors = [
+                '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+                '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
+            ]
+            color = random.choice(colors)
+            tag = await self.create_tag(db, name, color, description)
         return tag
 
     async def get_all_tags(self, db: AsyncSession) -> list[dict]:
@@ -55,9 +74,10 @@ class TagService:
         """Update a tag"""
         tag = await db.get(Tag, tag_id)
         if tag:
-            tag.name = name
-            tag.color = color
-            tag.description = description
+            # Use setattr to avoid type annotation issues
+            setattr(tag, 'name', name)
+            setattr(tag, 'color', color)
+            setattr(tag, 'description', description)
             await db.commit()
             await db.refresh(tag)
         return tag

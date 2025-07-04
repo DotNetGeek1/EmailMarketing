@@ -2,7 +2,7 @@ import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..models import GeneratedEmail, PlaywrightResult
-from ..playwright.test_runner import run as run_test
+from ...playwright.test_runner import run as run_test
 
 
 class TestService:

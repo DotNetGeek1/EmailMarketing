@@ -2,17 +2,12 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
 import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
-
-interface Tag {
-  id: number;
-  name: string;
-  color: string;
-  description?: string;
-  created_at: string;
-  campaign_count?: number;
-}
+import { Tag } from '../contexts/CampaignContext';
+import { useToast } from '../contexts/ToastContext';
+import { apiUrl } from '../config';
 
 const TagManagement: React.FC = () => {
+  const { showSuccess, showError } = useToast();
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -45,15 +40,16 @@ const TagManagement: React.FC = () => {
   const fetchTags = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/tags');
+      const response = await fetch(apiUrl('/tags'));
       if (response.ok) {
         const data = await response.json();
         setTags(data);
       } else {
-        console.error('Failed to fetch tags');
+        showError('Failed to fetch tags', 'Unable to load tags. Please try again.');
       }
     } catch (error) {
       console.error('Error fetching tags:', error);
+      showError('Failed to fetch tags', 'Unable to load tags. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -61,7 +57,7 @@ const TagManagement: React.FC = () => {
 
   const handleCreateTag = async () => {
     try {
-      const response = await fetch('/api/tags', {
+      const response = await fetch(apiUrl('/tags'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,11 +69,13 @@ const TagManagement: React.FC = () => {
         await fetchTags();
         setShowCreateModal(false);
         setFormData({ name: '', color: '#3B82F6', description: '' });
+        showSuccess('Tag Created', `${formData.name} has been created successfully.`);
       } else {
-        console.error('Failed to create tag');
+        showError('Failed to create tag', 'Unable to create tag. Please try again.');
       }
     } catch (error) {
       console.error('Error creating tag:', error);
+      showError('Failed to create tag', 'Unable to create tag. Please try again.');
     }
   };
 
@@ -85,7 +83,7 @@ const TagManagement: React.FC = () => {
     if (!selectedTag) return;
 
     try {
-      const response = await fetch(`/api/tags/${selectedTag.id}`, {
+      const response = await fetch(apiUrl(`/tags/${selectedTag.id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -98,11 +96,13 @@ const TagManagement: React.FC = () => {
         setShowEditModal(false);
         setSelectedTag(null);
         setFormData({ name: '', color: '#3B82F6', description: '' });
+        showSuccess('Tag Updated', `${formData.name} has been updated successfully.`);
       } else {
-        console.error('Failed to update tag');
+        showError('Failed to update tag', 'Unable to update tag. Please try again.');
       }
     } catch (error) {
       console.error('Error updating tag:', error);
+      showError('Failed to update tag', 'Unable to update tag. Please try again.');
     }
   };
 
@@ -110,7 +110,7 @@ const TagManagement: React.FC = () => {
     if (!selectedTag) return;
 
     try {
-      const response = await fetch(`/api/tags/${selectedTag.id}`, {
+      const response = await fetch(apiUrl(`/tags/${selectedTag.id}`), {
         method: 'DELETE',
       });
 
@@ -118,11 +118,13 @@ const TagManagement: React.FC = () => {
         await fetchTags();
         setShowDeleteModal(false);
         setSelectedTag(null);
+        showSuccess('Tag Deleted', `${selectedTag.name} has been deleted successfully.`);
       } else {
-        console.error('Failed to delete tag');
+        showError('Failed to delete tag', 'Unable to delete tag. Please try again.');
       }
     } catch (error) {
       console.error('Error deleting tag:', error);
+      showError('Failed to delete tag', 'Unable to delete tag. Please try again.');
     }
   };
 
@@ -211,7 +213,7 @@ const TagManagement: React.FC = () => {
                 {tag.campaign_count || 0} campaigns
               </span>
               <span>
-                {new Date(tag.created_at).toLocaleDateString()}
+                {tag.created_at ? new Date(tag.created_at).toLocaleDateString() : 'N/A'}
               </span>
             </div>
           </div>

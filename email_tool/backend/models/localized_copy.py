@@ -11,5 +11,6 @@ class LocalizedCopy(Base):
     language = Column(String, nullable=False)
     key = Column(String, nullable=False)
     value = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     campaign = relationship('Campaign', back_populates='copies')

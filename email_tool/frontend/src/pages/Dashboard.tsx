@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { apiUrl } from '../config';
+import { useToast } from '../contexts/ToastContext';
+import { useCampaign } from '../contexts/CampaignContext';
+import { useCustomer } from '../contexts/CustomerContext';
+import Modal from '../components/Modal';
+import FormField from '../components/FormField';
 
 interface Campaign {
   id: number;
   name: string;
   created_at: string;
+  templates_count: number;
+  languages_count: number;
+  tags?: any[];
 }
 
 interface DashboardStats {
@@ -14,6 +23,9 @@ interface DashboardStats {
 }
 
 const Dashboard: React.FC = () => {
+  const { showSuccess, showError } = useToast();
+  const { setCurrentCampaign } = useCampaign();
+  const { selectedCustomer } = useCustomer();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalCampaigns: 0,
@@ -22,17 +34,21 @@ const Dashboard: React.FC = () => {
     recentTests: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newCampaignName, setNewCampaignName] = useState('');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (selectedCustomer) fetchDashboardData();
+  }, [selectedCustomer]);
 
   const fetchDashboardData = async () => {
+    if (!selectedCustomer) return;
     try {
       setLoading(true);
       
       // Fetch campaigns for recent campaigns list
-      const campaignsResponse = await fetch('/api/campaigns');
+      const campaignsResponse = await fetch(apiUrl(`/campaigns?customer_id=${selectedCustomer.id}`));
       if (campaignsResponse.ok) {
         const campaignsData = await campaignsResponse.json();
         setCampaigns(campaignsData.slice(0, 5)); // Show only 5 most recent
@@ -55,33 +71,77 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const navigateToPage = (page: string) => {
+    window.dispatchEvent(new CustomEvent('navigate', { detail: page }));
+  };
+
+  const createCampaign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCampaignName.trim() || !selectedCustomer) return;
+    setCreating(true);
+    try {
+      const response = await fetch(apiUrl('/campaign'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `name=${encodeURIComponent(newCampaignName)}&customer_id=${selectedCustomer.id}`,
+      });
+      if (response.ok) {
+        const newCampaign = await response.json();
+        setCampaigns(prev => [newCampaign, ...prev.slice(0, 4)]); // Keep only 5 most recent
+        setNewCampaignName('');
+        setShowCreateForm(false);
+        
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          totalCampaigns: prev.totalCampaigns + 1
+        }));
+        
+        // Show success toast
+        showSuccess('Campaign Created', `${newCampaign.name} has been created successfully.`);
+      } else {
+        throw new Error('Failed to create campaign');
+      }
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+      showError('Creation Failed', 'Failed to create campaign. Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const openCampaign = (campaign: Campaign) => {
+    setCurrentCampaign(campaign);
+    window.dispatchEvent(new CustomEvent('navigate', { detail: 'campaign-detail' }));
+  };
+
   const quickActions = [
     {
       title: 'Create Campaign',
       description: 'Start a new email campaign',
       icon: 'M12 6v6m0 0v6m0-6h6m-6 0H6',
-      action: () => window.location.href = '#campaigns',
+      action: () => setShowCreateForm(true),
       color: 'bg-blue-500',
     },
     {
       title: 'Upload Template',
       description: 'Add a new HTML template',
       icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12',
-      action: () => window.location.href = '#templates',
+      action: () => navigateToPage('campaigns'),
       color: 'bg-green-500',
     },
     {
       title: 'Manage Copy',
       description: 'Edit localized content',
       icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
-      action: () => window.location.href = '#copy',
+      action: () => navigateToPage('campaigns'),
       color: 'bg-purple-500',
     },
     {
       title: 'Run Tests',
       description: 'Validate email templates',
       icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
-      action: () => window.location.href = '#testing',
+      action: () => navigateToPage('testing'),
       color: 'bg-orange-500',
     },
   ];
@@ -217,25 +277,27 @@ const Dashboard: React.FC = () => {
             <ul className="divide-y divide-gray-200 dark:divide-gray-700">
               {campaigns.map((campaign) => (
                 <li key={campaign.id}>
-                  <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-md flex items-center justify-center">
-                            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                            </svg>
+                  <button onClick={() => openCampaign(campaign)} className="w-full text-left focus:outline-none">
+                    <div className="px-4 py-4 sm:px-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0">
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-md flex items-center justify-center">
+                              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                              </svg>
+                            </div>
                           </div>
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{campaign.name}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            Created {new Date(campaign.created_at).toLocaleDateString()}
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{campaign.name}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              Created {new Date(campaign.created_at).toLocaleDateString()}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -254,7 +316,7 @@ const Dashboard: React.FC = () => {
               Create your first campaign to get started
             </p>
             <button
-              onClick={() => window.location.href = '#campaigns'}
+              onClick={() => navigateToPage('campaigns')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
             >
               Create Campaign
@@ -262,6 +324,35 @@ const Dashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Create Campaign Modal */}
+      <Modal title="Create New Campaign" isOpen={showCreateForm} onClose={() => setShowCreateForm(false)}>
+        <form onSubmit={createCampaign}>
+          <FormField
+            label="Campaign Name"
+            value={newCampaignName}
+            onChange={(e) => setNewCampaignName(e.target.value)}
+            required
+            placeholder="Enter campaign name"
+          />
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={creating}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+            >
+              {creating ? 'Creating...' : 'Create'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

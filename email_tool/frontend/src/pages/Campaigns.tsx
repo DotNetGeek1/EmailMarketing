@@ -1,78 +1,151 @@
 import React, { useState, useEffect } from 'react';
+import { useCampaign } from '../contexts/CampaignContext';
+import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CampaignList, { Campaign } from '../components/CampaignList';
+import { apiUrl } from '../config';
+import { useCustomer } from '../contexts/CustomerContext';
 
 const Campaigns: React.FC = () => {
+  const { setCurrentCampaign } = useCampaign();
+  const { showSuccess, showError, showInfo } = useToast();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  const [deleteTimeout, setDeleteTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [customers, setCustomers] = useState<{id: number, name: string}[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
 
   useEffect(() => {
     fetchCampaigns();
+    fetchCustomers();
   }, []);
 
-  const fetchCampaigns = async () => {
+  const fetchCustomers = async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/campaigns');
+      const response = await fetch(apiUrl('/customers'));
       if (response.ok) {
         const data = await response.json();
-        setCampaigns(data);
-      } else {
-        console.error('Failed to fetch campaigns');
-        setCampaigns([]);
+        setCustomers(data);
       }
     } catch (error) {
-      console.error('Error fetching campaigns:', error);
-      setCampaigns([]);
+      setCustomers([]);
+    }
+  };
+
+  const createCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustomerName.trim()) return;
+    setCreatingCustomer(true);
+    try {
+      const response = await fetch(apiUrl('/customer'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `name=${encodeURIComponent(newCustomerName)}`,
+      });
+      if (response.ok) {
+        const newCustomer = await response.json();
+        setCustomers(prev => [newCustomer, ...prev]);
+        setSelectedCustomer(newCustomer.id);
+        setShowNewCustomer(false);
+        setNewCustomerName('');
+        showSuccess('Customer Created', `${newCustomer.name} has been created.`);
+      } else {
+        throw new Error('Failed to create customer');
+      }
+    } catch (error) {
+      showError('Creation Failed', 'Failed to create customer.');
     } finally {
-      setLoading(false);
+      setCreatingCustomer(false);
     }
   };
 
   const createCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCampaignName.trim()) return;
+    if (!newCampaignName.trim() || !selectedCustomer) return;
     setCreating(true);
     try {
-      const response = await fetch('/api/campaign', {
+      const response = await fetch(apiUrl('/campaign'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `name=${encodeURIComponent(newCampaignName)}`,
+        body: `name=${encodeURIComponent(newCampaignName)}&customer_id=${selectedCustomer.id}`,
       });
       if (response.ok) {
         const newCampaign = await response.json();
         setCampaigns(prev => [newCampaign, ...prev]);
         setNewCampaignName('');
         setShowCreateForm(false);
+        // Show success toast
+        showSuccess('Campaign Created', `${newCampaign.name} has been created successfully.`);
+        // Automatically open the new campaign
+        openCampaign(newCampaign);
       } else {
         throw new Error('Failed to create campaign');
       }
-    } catch {
-      alert('Failed to create campaign. Please try again.');
+    } catch (error) {
+      showError('Creation Failed', 'Failed to create campaign. Please try again.');
     } finally {
       setCreating(false);
     }
   };
 
-  const deleteCampaign = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this campaign?')) return;
+  const fetchCampaigns = async () => {
+    if (!selectedCustomer) return;
     try {
-      const response = await fetch(`/api/campaign/${id}`, {
+      setLoading(true);
+      const response = await fetch(apiUrl(`/campaigns?customer_id=${selectedCustomer.id}`));
+      if (response.ok) {
+        const data = await response.json();
+        setCampaigns(data);
+      } else {
+        setCampaigns([]);
+      }
+    } catch (error) {
+      setCampaigns([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openCampaign = (campaign: Campaign) => {
+    setCurrentCampaign(campaign);
+    // Navigate to campaign detail page
+    window.history.pushState({}, '', `/campaign/${campaign.id}`);
+    // Trigger a custom event to notify App.tsx to change the page
+    window.dispatchEvent(new CustomEvent('navigate', { detail: 'campaign-detail' }));
+  };
+
+  const deleteCampaign = async (id: number) => {
+    if (pendingDeleteId !== id) {
+      setPendingDeleteId(id);
+      showInfo('Confirm Delete', 'Click delete again to confirm.');
+      if (deleteTimeout) clearTimeout(deleteTimeout);
+      setDeleteTimeout(setTimeout(() => setPendingDeleteId(null), 5000));
+      return;
+    }
+    setPendingDeleteId(null);
+    if (deleteTimeout) clearTimeout(deleteTimeout);
+    try {
+      const response = await fetch(apiUrl(`/campaign/${id}`), {
         method: 'DELETE',
       });
       if (response.ok) {
         setCampaigns(prev => prev.filter(campaign => campaign.id !== id));
+        showSuccess('Campaign Deleted', 'Campaign has been deleted successfully.');
       } else {
-        alert('Failed to delete campaign. Please try again.');
+        showError('Deletion Failed', 'Failed to delete campaign. Please try again.');
       }
     } catch (error) {
       console.error('Error deleting campaign:', error);
-      alert('Failed to delete campaign. Please try again.');
+      showError('Deletion Failed', 'Failed to delete campaign. Please try again.');
     }
   };
 
@@ -103,6 +176,37 @@ const Campaigns: React.FC = () => {
             required
             placeholder="Enter campaign name"
           />
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer</label>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedCustomer || ''}
+                onChange={e => setSelectedCustomer(Number(e.target.value))}
+                required
+                className="border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900"
+              >
+                <option value="" disabled>Select customer...</option>
+                {customers.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <button type="button" onClick={() => setShowNewCustomer(true)} className="text-xs text-blue-600 hover:underline">New Customer</button>
+            </div>
+            {showNewCustomer && (
+              <form onSubmit={createCustomer} className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={newCustomerName}
+                  onChange={e => setNewCustomerName(e.target.value)}
+                  placeholder="Customer name"
+                  className="border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900"
+                  required
+                />
+                <button type="submit" disabled={creatingCustomer} className="px-2 py-1 text-xs bg-blue-600 text-white rounded">{creatingCustomer ? 'Creating...' : 'Add'}</button>
+                <button type="button" onClick={() => setShowNewCustomer(false)} className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 rounded">Cancel</button>
+              </form>
+            )}
+          </div>
           <div className="flex justify-end space-x-3">
             <button
               type="button"
@@ -128,6 +232,7 @@ const Campaigns: React.FC = () => {
         <CampaignList
           campaigns={campaigns}
           onDelete={deleteCampaign}
+          onOpen={openCampaign}
         />
       )}
     </div>

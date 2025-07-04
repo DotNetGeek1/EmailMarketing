@@ -5,6 +5,7 @@ from .placeholder import Placeholder
 from .localized_copy import LocalizedCopy
 from .generated_email import GeneratedEmail
 from .playwright_result import PlaywrightResult
+from .tag import Tag
 
 __all__ = [
     'Base',
@@ -14,4 +15,5 @@ __all__ = [
     'LocalizedCopy',
     'GeneratedEmail',
     'PlaywrightResult',
+    'Tag',
 ]

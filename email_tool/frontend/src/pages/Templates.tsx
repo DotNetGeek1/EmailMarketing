@@ -1,50 +1,58 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TemplateList, { Template } from '../components/TemplateList';
+import { apiUrl } from '../config';
 import PlaceholderBadge from '../components/PlaceholderBadge';
 
-interface Campaign {
-  id: number;
-  name: string;
-}
-
 const Templates: React.FC = () => {
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaigns, setCampaigns] = useState<Array<{ id: number; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [showUploadForm, setShowUploadForm] = useState(false);
-  const [selectedCampaign, setSelectedCampaign] = useState('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | ''>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  const [deleteTimeout, setDeleteTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    fetchData();
+    fetchTemplates();
+    fetchCampaigns();
   }, []);
 
-  const fetchData = async () => {
+  const fetchTemplates = async () => {
     try {
       setLoading(true);
-      
-      // Fetch campaigns
-      const campaignsResponse = await fetch('/api/campaigns');
-      if (campaignsResponse.ok) {
-        const campaignsData = await campaignsResponse.json();
-        setCampaigns(campaignsData);
-      }
-      
-      // Fetch templates
-      const templatesResponse = await fetch('/api/templates');
-      if (templatesResponse.ok) {
-        const templatesData = await templatesResponse.json();
-        setTemplates(templatesData);
+      const response = await fetch(apiUrl('/templates'));
+      if (response.ok) {
+        const data = await response.json();
+        setTemplates(data);
+      } else {
+        console.error('Failed to fetch templates');
+        setTemplates([]);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching templates:', error);
+      setTemplates([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCampaigns = async () => {
+    try {
+      const response = await fetch(apiUrl('/campaigns'));
+      if (response.ok) {
+        const data = await response.json();
+        setCampaigns(data);
+      }
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
     }
   };
 
@@ -53,63 +61,66 @@ const Templates: React.FC = () => {
     if (file && file.type === 'text/html') {
       setSelectedFile(file);
     } else {
-      alert('Please select a valid HTML file.');
+      showWarning('Invalid File', 'Please select a valid HTML file.');
     }
   };
 
   const uploadTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCampaign || !selectedFile) return;
-
+    if (!selectedFile || !selectedCampaignId) return;
+    
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append('campaign_id', selectedCampaign);
       formData.append('file', selectedFile);
+      formData.append('campaign_id', selectedCampaignId.toString());
 
-      const response = await fetch('/api/template', {
+      const response = await fetch(apiUrl('/template'), {
         method: 'POST',
         body: formData,
       });
 
       if (response.ok) {
         const result = await response.json();
-        const newTemplate: Template = {
-          id: result.template_id,
-          campaign_id: parseInt(selectedCampaign),
-          filename: selectedFile.name,
-          content: await selectedFile.text(),
-          created_at: new Date().toISOString().split('T')[0],
-          placeholders: result.placeholders,
-        };
-        setTemplates(prev => [newTemplate, ...prev]);
-        setSelectedCampaign('');
+        setTemplates(prev => [result, ...prev]);
         setSelectedFile(null);
+        setSelectedCampaignId('');
         setShowUploadForm(false);
+        showSuccess('Template Uploaded', 'Template has been uploaded successfully.');
       } else {
         throw new Error('Failed to upload template');
       }
     } catch (error) {
-      alert('Failed to upload template. Please try again.');
+      console.error('Error uploading template:', error);
+      showError('Upload Failed', 'Failed to upload template. Please try again.');
     } finally {
       setUploading(false);
     }
   };
 
   const deleteTemplate = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this template?')) return;
+    if (pendingDeleteId !== id) {
+      setPendingDeleteId(id);
+      showInfo('Confirm Delete', 'Click delete again to confirm.');
+      if (deleteTimeout) clearTimeout(deleteTimeout);
+      setDeleteTimeout(setTimeout(() => setPendingDeleteId(null), 5000));
+      return;
+    }
+    setPendingDeleteId(null);
+    if (deleteTimeout) clearTimeout(deleteTimeout);
     try {
-      const response = await fetch(`/api/template/${id}`, {
+      const response = await fetch(apiUrl(`/template/${id}`), {
         method: 'DELETE',
       });
       if (response.ok) {
         setTemplates(prev => prev.filter(template => template.id !== id));
+        showSuccess('Template Deleted', 'Template has been deleted successfully.');
       } else {
-        alert('Failed to delete template. Please try again.');
+        showError('Deletion Failed', 'Failed to delete template. Please try again.');
       }
     } catch (error) {
       console.error('Error deleting template:', error);
-      alert('Failed to delete template. Please try again.');
+      showError('Deletion Failed', 'Failed to delete template. Please try again.');
     }
   };
 
@@ -136,8 +147,8 @@ const Templates: React.FC = () => {
           <FormField
             label="Campaign"
             type="select"
-            value={selectedCampaign}
-            onChange={(e) => setSelectedCampaign(e.target.value)}
+                         value={selectedCampaignId.toString()}
+             onChange={(e) => setSelectedCampaignId(e.target.value ? parseInt(e.target.value) : '')}
             options={campaigns.map(c => ({ value: c.id.toString(), label: c.name }))}
             required
           />

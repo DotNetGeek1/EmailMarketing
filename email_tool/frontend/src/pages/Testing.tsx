@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
 import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { apiUrl } from '../config';
+import { useToast } from '../contexts/ToastContext';
 
 interface TestResult {
   id: number;
@@ -16,9 +18,12 @@ interface TestResult {
 interface Campaign {
   id: number;
   name: string;
+  templates_count: number;
+  languages_count: number;
 }
 
 const Testing: React.FC = () => {
+  const { showSuccess, showError } = useToast();
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,44 +38,22 @@ const Testing: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      setTimeout(() => {
-        setCampaigns([
-          { id: 1, name: 'Summer Sale 2024' },
-          { id: 2, name: 'Product Launch' },
-          { id: 3, name: 'Newsletter Q1' },
-        ]);
-        setTestResults([
-          {
-            id: 1,
-            campaign_id: 1,
-            language: 'en',
-            passed: true,
-            issues: [],
-            tested_at: '2024-01-15T10:30:00Z',
-            generated_email_id: 1,
-          },
-          {
-            id: 2,
-            campaign_id: 1,
-            language: 'es',
-            passed: false,
-            issues: ['Missing placeholder: {{cta_text}}', 'Broken link: https://example.com/sale'],
-            tested_at: '2024-01-15T10:35:00Z',
-            generated_email_id: 2,
-          },
-          {
-            id: 3,
-            campaign_id: 2,
-            language: 'en',
-            passed: true,
-            issues: [],
-            tested_at: '2024-01-14T15:20:00Z',
-            generated_email_id: 3,
-          },
-        ]);
-        setLoading(false);
-      }, 1000);
+      setLoading(true);
+      
+      // Fetch campaigns
+      const campaignsResponse = await fetch(apiUrl('/campaigns'));
+      if (campaignsResponse.ok) {
+        const campaignsData = await campaignsResponse.json();
+        setCampaigns(campaignsData);
+      }
+
+      // TODO: Fetch test results when backend endpoint is available
+      // For now, we'll use empty array
+      setTestResults([]);
+      
     } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
       setLoading(false);
     }
   };
@@ -81,12 +64,13 @@ const Testing: React.FC = () => {
 
     setRunningTests(true);
     try {
-      const response = await fetch(`/test/${selectedCampaign}`, {
+      const response = await fetch(apiUrl(`/test/${selectedCampaign}`), {
         method: 'POST',
       });
 
       if (response.ok) {
         const result = await response.json();
+        showSuccess('Tests Completed', `Successfully ran ${result.tested} tests!`);
         // In a real app, you'd fetch the updated test results
         // For now, we'll simulate new results
         const newResults: TestResult[] = [
@@ -104,10 +88,11 @@ const Testing: React.FC = () => {
         setSelectedCampaign('');
         setShowTestForm(false);
       } else {
-        throw new Error('Failed to run tests');
+        showError('Test Failed', 'Failed to run tests. Please try again.');
       }
     } catch (error) {
-      alert('Failed to run tests. Please try again.');
+      console.error('Error running tests:', error);
+      showError('Test Failed', 'Failed to run tests. Please try again.');
     } finally {
       setRunningTests(false);
     }
@@ -116,16 +101,16 @@ const Testing: React.FC = () => {
   const getStatusIcon = (passed: boolean) => {
     if (passed) {
       return (
-        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-          <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+          <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
       );
     } else {
       return (
-        <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-          <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+          <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </div>
@@ -149,12 +134,12 @@ const Testing: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Testing</h1>
-          <p className="mt-1 text-sm text-gray-500">Run Playwright tests to validate your email templates.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Testing</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Run Playwright tests to validate your email templates.</p>
         </div>
         <button
           onClick={() => setShowTestForm(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
         >
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -173,21 +158,21 @@ const Testing: React.FC = () => {
             options={campaigns.map(c => ({ value: c.id.toString(), label: c.name }))}
             required
           />
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             This will run Playwright tests to validate placeholder substitution, URLs, and email rendering.
           </p>
           <div className="flex justify-end space-x-3">
             <button
               type="button"
               onClick={() => setShowTestForm(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={runningTests}
-              className="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 transition-colors"
             >
               {runningTests ? 'Running...' : 'Run Tests'}
             </button>
@@ -195,17 +180,17 @@ const Testing: React.FC = () => {
         </form>
       </Modal>
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+      <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
         {testResults.length === 0 ? (
           <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No test results</h3>
-            <p className="mt-1 text-sm text-gray-500">Run tests to validate your email templates.</p>
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No test results</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Run tests on your campaigns to see validation results.</p>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-200">
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
             {testResults.map((result) => (
               <li key={result.id}>
                 <div className="px-4 py-4 sm:px-6">
@@ -214,33 +199,40 @@ const Testing: React.FC = () => {
                       {getStatusIcon(result.passed)}
                       <div className="ml-4">
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-900">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
                             {campaigns.find(c => c.id === result.campaign_id)?.name || 'Unknown Campaign'}
                           </span>
-                          <span className="text-sm text-gray-500">•</span>
-                          <span className="text-sm text-gray-500">{getLanguageName(result.language)}</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">{getLanguageName(result.language)}</span>
+                        </div>
+                        <div className="mt-1">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             result.passed 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
+                              ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' 
+                              : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
                           }`}>
                             {result.passed ? 'Passed' : 'Failed'}
                           </span>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          Tested {new Date(result.tested_at).toLocaleString()}
-                        </div>
                         {result.issues.length > 0 && (
-                          <div className="text-sm text-red-600 mt-1">
-                            {result.issues.length} issue{result.issues.length !== 1 ? 's' : ''} found
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">Issues:</p>
+                            <ul className="mt-1 space-y-1">
+                              {result.issues.map((issue, index) => (
+                                <li key={index} className="text-sm text-red-600 dark:text-red-400">• {issue}</li>
+                              ))}
+                            </ul>
                           </div>
                         )}
+                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          Tested {new Date(result.tested_at).toLocaleString()}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <button
+                      <button 
                         onClick={() => setSelectedResult(result)}
-                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
                       >
                         View Details
                       </button>
@@ -253,58 +245,53 @@ const Testing: React.FC = () => {
         )}
       </div>
 
-      <Modal 
-        title={`Test Results: ${selectedResult ? campaigns.find(c => c.id === selectedResult.campaign_id)?.name : ''}`} 
-        isOpen={!!selectedResult} 
-        onClose={() => setSelectedResult(null)}
-      >
-        {selectedResult && (
+      {/* Test Result Details Modal */}
+      {selectedResult && (
+        <Modal 
+          title="Test Result Details" 
+          isOpen={!!selectedResult} 
+          onClose={() => setSelectedResult(null)}
+        >
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              {getStatusIcon(selectedResult.passed)}
-              <div>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  selectedResult.passed 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {selectedResult.passed ? 'Passed' : 'Failed'}
-                </span>
-                <span className="text-sm text-gray-500 ml-2">
-                  {getLanguageName(selectedResult.language)}
-                </span>
-              </div>
-            </div>
-            
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Test Details:</h4>
-              <div className="text-sm text-gray-600">
-                <p><strong>Campaign ID:</strong> {selectedResult.campaign_id}</p>
-                <p><strong>Language:</strong> {selectedResult.language}</p>
-                <p><strong>Tested At:</strong> {new Date(selectedResult.tested_at).toLocaleString()}</p>
-                <p><strong>Generated Email ID:</strong> {selectedResult.generated_email_id}</p>
-              </div>
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white">Campaign</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {campaigns.find(c => c.id === selectedResult.campaign_id)?.name || 'Unknown Campaign'}
+              </p>
             </div>
-
+            <div>
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white">Language</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{getLanguageName(selectedResult.language)}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white">Status</h4>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                selectedResult.passed 
+                  ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' 
+                  : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+              }`}>
+                {selectedResult.passed ? 'Passed' : 'Failed'}
+              </span>
+            </div>
             {selectedResult.issues.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-red-700 mb-2">Issues Found:</h4>
-                <ul className="list-disc list-inside text-sm text-red-600 space-y-1">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white">Issues Found</h4>
+                <ul className="mt-2 space-y-1">
                   {selectedResult.issues.map((issue, index) => (
-                    <li key={index}>{issue}</li>
+                    <li key={index} className="text-sm text-red-600 dark:text-red-400">• {issue}</li>
                   ))}
                 </ul>
               </div>
             )}
-
-            {selectedResult.passed && (
-              <div className="text-sm text-green-600">
-                ✓ All tests passed successfully!
-              </div>
-            )}
+            <div>
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white">Tested At</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {new Date(selectedResult.tested_at).toLocaleString()}
+              </p>
+            </div>
           </div>
-        )}
-      </Modal>
+        </Modal>
+      )}
     </div>
   );
 };
