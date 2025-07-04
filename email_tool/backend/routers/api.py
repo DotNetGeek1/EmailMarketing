@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..data_access.database import get_db
 from ..services.campaign_service import CampaignService
@@ -31,13 +31,22 @@ class TagUpdate(BaseModel):
 
 
 @router.post('/campaign')
-async def create_campaign(name: str, db: AsyncSession = Depends(get_db)):
-    campaign = await campaign_service.create_campaign(db, name)
-    return {'id': campaign.id, 'name': campaign.name}
+async def create_campaign(name: str = Form(...), db: AsyncSession = Depends(get_db)):
+    try:
+        campaign = await campaign_service.create_campaign(db, name)
+        return {
+            'id': campaign.id, 
+            'name': campaign.name,
+            'created_at': campaign.created_at.isoformat(),
+            'templates_count': 0,
+            'languages_count': 0
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put('/campaign/{campaign_id}')
-async def update_campaign(campaign_id: int, name: str, db: AsyncSession = Depends(get_db)):
+async def update_campaign(campaign_id: int, name: str = Form(...), db: AsyncSession = Depends(get_db)):
     campaign = await campaign_service.update_campaign(db, campaign_id, name)
     if not campaign:
         raise HTTPException(status_code=404, detail='Campaign not found')
@@ -46,15 +55,21 @@ async def update_campaign(campaign_id: int, name: str, db: AsyncSession = Depend
 
 @router.post('/template')
 async def upload_template(
-    campaign_id: int,
+    campaign_id: int = Form(...),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
-    content = (await file.read()).decode('utf-8')
-    template, keys = await template_service.upload_template(db, campaign_id, file.filename, content)
-    if not template:
-        raise HTTPException(status_code=404, detail='Campaign not found')
-    return {'template_id': template.id, 'placeholders': keys}
+    if not file.filename:
+        raise HTTPException(status_code=400, detail='No file provided')
+    
+    try:
+        content = (await file.read()).decode('utf-8')
+        template, keys = await template_service.upload_template(db, campaign_id, file.filename, content)
+        if not template:
+            raise HTTPException(status_code=404, detail='Campaign not found')
+        return {'template_id': template.id, 'placeholders': keys}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get('/placeholders/{template_id}')
