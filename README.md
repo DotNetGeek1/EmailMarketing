@@ -141,9 +141,15 @@ Post-MVP Ideas:
 email-tool/
 ├── backend/
 │   ├── main.py
-│   ├── models.py
+│   ├── data_access/
+│   │   └── database.py
+│   ├── models/
+│   │   ├── base.py
+│   │   └── *.py
 │   ├── routers/
-│   └── templates/
+│   │   └── api.py
+│   └── services/
+│       └── *.py
 ├── frontend/
 │   ├── src/
 │   └── public/

@@ -1,25 +1,27 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from ..models import Campaign
 
 
 class CampaignService:
     """Business logic related to campaigns."""
 
-    def create_campaign(self, db: Session, name: str) -> Campaign:
+    async def create_campaign(self, db: AsyncSession, name: str) -> Campaign:
         campaign = Campaign(name=name)
         db.add(campaign)
-        db.commit()
-        db.refresh(campaign)
+        await db.commit()
+        await db.refresh(campaign)
         return campaign
 
-    def update_campaign(self, db: Session, campaign_id: int, name: str) -> Campaign | None:
-        campaign = db.query(Campaign).get(campaign_id)
+    async def update_campaign(self, db: AsyncSession, campaign_id: int, name: str) -> Campaign | None:
+        campaign = await db.get(Campaign, campaign_id)
         if not campaign:
             return None
         campaign.name = name
-        db.commit()
-        db.refresh(campaign)
+        await db.commit()
+        await db.refresh(campaign)
         return campaign
 
-    def get_campaign(self, db: Session, campaign_id: int) -> Campaign | None:
-        return db.query(Campaign).get(campaign_id)
+    async def get_campaign(self, db: AsyncSession, campaign_id: int) -> Campaign | None:
+        return await db.get(Campaign, campaign_id)
+

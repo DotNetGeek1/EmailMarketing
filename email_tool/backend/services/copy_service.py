@@ -1,19 +1,20 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from ..models import Campaign, LocalizedCopy
 
 
 class CopyService:
     """Manage localized copy blocks."""
 
-    def submit_copy(
+    async def submit_copy(
         self,
-        db: Session,
+        db: AsyncSession,
         campaign_id: int,
         language: str,
         key: str,
         value: str,
     ) -> LocalizedCopy | None:
-        campaign = db.query(Campaign).get(campaign_id)
+        campaign = await db.get(Campaign, campaign_id)
         if not campaign:
             return None
         copy = LocalizedCopy(
@@ -23,9 +24,13 @@ class CopyService:
             value=value,
         )
         db.add(copy)
-        db.commit()
-        db.refresh(copy)
+        await db.commit()
+        await db.refresh(copy)
         return copy
 
-    def get_copies(self, db: Session, campaign_id: int) -> list[LocalizedCopy]:
-        return db.query(LocalizedCopy).filter_by(campaign_id=campaign_id).all()
+    async def get_copies(self, db: AsyncSession, campaign_id: int) -> list[LocalizedCopy]:
+        result = await db.execute(
+            select(LocalizedCopy).filter_by(campaign_id=campaign_id)
+        )
+        return result.scalars().all()
+
