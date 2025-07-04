@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .base import Base
+from .campaign_tag import campaign_tags
 
 class Campaign(Base):
     __tablename__ = 'campaign'
@@ -13,3 +14,4 @@ class Campaign(Base):
     templates = relationship('Template', back_populates='campaign')
     copies = relationship('LocalizedCopy', back_populates='campaign')
     generated_emails = relationship('GeneratedEmail', back_populates='campaign')
+    tags = relationship('Tag', secondary=campaign_tags, back_populates='campaigns')

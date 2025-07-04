@@ -26,33 +26,24 @@ const Templates: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      setTimeout(() => {
-        setCampaigns([
-          { id: 1, name: 'Summer Sale 2024' },
-          { id: 2, name: 'Product Launch' },
-          { id: 3, name: 'Newsletter Q1' },
-        ]);
-        setTemplates([
-          {
-            id: 1,
-            campaign_id: 1,
-            filename: 'summer_sale_template.html',
-            content: '<html><body><h1>{{headline}}</h1><p>{{description}}</p></body></html>',
-            created_at: '2024-01-15',
-            placeholders: ['{{headline}}', '{{description}}'],
-          },
-          {
-            id: 2,
-            campaign_id: 2,
-            filename: 'product_launch_template.html',
-            content: '<html><body><h2>{{title}}</h2><p>{{content}}</p><a href="{{cta_url}}">{{cta_text}}</a></body></html>',
-            created_at: '2024-01-10',
-            placeholders: ['{{title}}', '{{content}}', '{{cta_url}}', '{{cta_text}}'],
-          },
-        ]);
-        setLoading(false);
-      }, 1000);
+      setLoading(true);
+      
+      // Fetch campaigns
+      const campaignsResponse = await fetch('/api/campaigns');
+      if (campaignsResponse.ok) {
+        const campaignsData = await campaignsResponse.json();
+        setCampaigns(campaignsData);
+      }
+      
+      // Fetch templates
+      const templatesResponse = await fetch('/api/templates');
+      if (templatesResponse.ok) {
+        const templatesData = await templatesResponse.json();
+        setTemplates(templatesData);
+      }
     } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
       setLoading(false);
     }
   };
@@ -76,7 +67,7 @@ const Templates: React.FC = () => {
       formData.append('campaign_id', selectedCampaign);
       formData.append('file', selectedFile);
 
-      const response = await fetch('/template', {
+      const response = await fetch('/api/template', {
         method: 'POST',
         body: formData,
       });
@@ -107,19 +98,31 @@ const Templates: React.FC = () => {
 
   const deleteTemplate = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this template?')) return;
-    setTemplates(prev => prev.filter(template => template.id !== id));
+    try {
+      const response = await fetch(`/api/template/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setTemplates(prev => prev.filter(template => template.id !== id));
+      } else {
+        alert('Failed to delete template. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      alert('Failed to delete template. Please try again.');
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Templates</h1>
-          <p className="mt-1 text-sm text-gray-500">Upload and manage HTML email templates with dynamic placeholders.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Templates</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Upload and manage HTML email templates with dynamic placeholders.</p>
         </div>
         <button
           onClick={() => setShowUploadForm(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
         >
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -145,21 +148,21 @@ const Templates: React.FC = () => {
             accept=".html,.htm"
             required
           />
-          <p className="mt-1 text-xs text-gray-500 mb-4">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 mb-4">
             Upload an HTML file with placeholders like {'{{variable_name}}'}
           </p>
           <div className="flex justify-end space-x-3">
             <button
               type="button"
               onClick={() => setShowUploadForm(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={uploading}
-              className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
             >
               {uploading ? 'Uploading...' : 'Upload'}
             </button>
@@ -186,7 +189,7 @@ const Templates: React.FC = () => {
         {previewTemplate && (
           <>
             <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Placeholders:</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Placeholders:</h4>
               <div className="flex flex-wrap gap-2">
                 {previewTemplate.placeholders.map((placeholder, index) => (
                   <PlaceholderBadge key={index} value={placeholder} />
@@ -194,8 +197,8 @@ const Templates: React.FC = () => {
               </div>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">HTML Content:</h4>
-              <pre className="bg-gray-50 p-4 rounded-md text-sm overflow-x-auto max-h-96">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">HTML Content:</h4>
+              <pre className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md text-sm overflow-x-auto max-h-96 text-gray-900 dark:text-gray-100">
                 {previewTemplate.content}
               </pre>
             </div>

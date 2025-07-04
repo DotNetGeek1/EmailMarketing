@@ -24,51 +24,64 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real app, you'd fetch this data from the API
-    // For now, we'll simulate some data
-    setTimeout(() => {
-      setCampaigns([
-        { id: 1, name: 'Summer Sale 2024', created_at: '2024-01-15' },
-        { id: 2, name: 'Product Launch', created_at: '2024-01-10' },
-        { id: 3, name: 'Newsletter Q1', created_at: '2024-01-05' },
-      ]);
-      setStats({
-        totalCampaigns: 3,
-        totalTemplates: 5,
-        totalLanguages: 8,
-        recentTests: 12,
-      });
-      setLoading(false);
-    }, 1000);
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch campaigns for recent campaigns list
+      const campaignsResponse = await fetch('/api/campaigns');
+      if (campaignsResponse.ok) {
+        const campaignsData = await campaignsResponse.json();
+        setCampaigns(campaignsData.slice(0, 5)); // Show only 5 most recent
+        
+        // Calculate stats from campaigns data
+        const totalTemplates = campaignsData.reduce((sum: number, campaign: any) => sum + campaign.templates_count, 0);
+        const totalLanguages = campaignsData.reduce((sum: number, campaign: any) => sum + campaign.languages_count, 0);
+        
+        setStats({
+          totalCampaigns: campaignsData.length,
+          totalTemplates,
+          totalLanguages,
+          recentTests: 0, // This would come from a separate endpoint in a real app
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const quickActions = [
     {
       title: 'Create Campaign',
       description: 'Start a new email campaign',
       icon: 'M12 6v6m0 0v6m0-6h6m-6 0H6',
-      action: () => console.log('Create campaign'),
+      action: () => window.location.href = '#campaigns',
       color: 'bg-blue-500',
     },
     {
       title: 'Upload Template',
       description: 'Add a new HTML template',
       icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12',
-      action: () => console.log('Upload template'),
+      action: () => window.location.href = '#templates',
       color: 'bg-green-500',
     },
     {
       title: 'Manage Copy',
       description: 'Edit localized content',
       icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
-      action: () => console.log('Manage copy'),
+      action: () => window.location.href = '#copy',
       color: 'bg-purple-500',
     },
     {
       title: 'Run Tests',
       description: 'Validate email templates',
       icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
-      action: () => console.log('Run tests'),
+      action: () => window.location.href = '#testing',
       color: 'bg-orange-500',
     },
   ];
@@ -199,35 +212,55 @@ const Dashboard: React.FC = () => {
       {/* Recent Campaigns */}
       <div>
         <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Campaigns</h2>
-        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md transition-colors duration-200">
-          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {campaigns.map((campaign) => (
-              <li key={campaign.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                          <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                          </svg>
+        {campaigns.length > 0 ? (
+          <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
+            <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+              {campaigns.map((campaign) => (
+                <li key={campaign.id}>
+                  <div className="px-4 py-4 sm:px-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-md flex items-center justify-center">
+                            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{campaign.name}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            Created {new Date(campaign.created_at).toLocaleDateString()}
+                          </div>
                         </div>
                       </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{campaign.name}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">Created {new Date(campaign.created_at).toLocaleDateString()}</div>
-                      </div>
-                    </div>
-                    <div className="flex space-x-2">
-                      <button className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">View</button>
-                      <button className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300">Edit</button>
                     </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-gray-400 dark:text-gray-500 mb-4">
+              <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              No campaigns yet
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
+              Create your first campaign to get started
+            </p>
+            <button
+              onClick={() => window.location.href = '#campaigns'}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Create Campaign
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

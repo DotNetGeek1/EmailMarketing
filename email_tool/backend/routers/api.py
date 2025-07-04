@@ -6,6 +6,9 @@ from ..services.template_service import TemplateService
 from ..services.copy_service import CopyService
 from ..services.email_service import EmailService
 from ..services.test_service import TestService
+from ..services.tag_service import TagService
+from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter()
 
@@ -14,6 +17,17 @@ template_service = TemplateService()
 copy_service = CopyService()
 email_service = EmailService()
 test_service = TestService()
+tag_service = TagService()
+
+class TagCreate(BaseModel):
+    name: str
+    color: str
+    description: Optional[str] = None
+
+class TagUpdate(BaseModel):
+    name: str
+    color: str
+    description: Optional[str] = None
 
 
 @router.post('/campaign')
@@ -75,4 +89,84 @@ async def generate_emails(campaign_id: int, db: AsyncSession = Depends(get_db)):
 async def run_tests(campaign_id: int, db: AsyncSession = Depends(get_db)):
     count = await test_service.run_tests(db, campaign_id)
     return {'tested': count}
+
+
+@router.get('/tags')
+async def get_tags(db: AsyncSession = Depends(get_db)):
+    """Get all tags with campaign counts"""
+    tags = await tag_service.get_all_tags(db)
+    return tags
+
+@router.post('/tags')
+async def create_tag(tag_data: TagCreate, db: AsyncSession = Depends(get_db)):
+    """Create a new tag"""
+    try:
+        tag = await tag_service.create_tag(db, tag_data.name, tag_data.color, tag_data.description)
+        return {
+            'id': tag.id,
+            'name': tag.name,
+            'color': tag.color,
+            'description': tag.description,
+            'created_at': tag.created_at.isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put('/tags/{tag_id}')
+async def update_tag(tag_id: int, tag_data: TagUpdate, db: AsyncSession = Depends(get_db)):
+    """Update a tag"""
+    tag = await tag_service.update_tag(db, tag_id, tag_data.name, tag_data.color, tag_data.description)
+    if not tag:
+        raise HTTPException(status_code=404, detail='Tag not found')
+    return {
+        'id': tag.id,
+        'name': tag.name,
+        'color': tag.color,
+        'description': tag.description,
+        'created_at': tag.created_at.isoformat()
+    }
+
+@router.delete('/tags/{tag_id}')
+async def delete_tag(tag_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a tag"""
+    success = await tag_service.delete_tag(db, tag_id)
+    if not success:
+        raise HTTPException(status_code=404, detail='Tag not found')
+    return {'message': 'Tag deleted successfully'}
+
+@router.post('/campaigns/{campaign_id}/tags/{tag_id}')
+async def add_tag_to_campaign(campaign_id: int, tag_id: int, db: AsyncSession = Depends(get_db)):
+    """Add a tag to a campaign"""
+    success = await tag_service.add_tag_to_campaign(db, campaign_id, tag_id)
+    if not success:
+        raise HTTPException(status_code=400, detail='Failed to add tag to campaign')
+    return {'message': 'Tag added to campaign successfully'}
+
+@router.delete('/campaigns/{campaign_id}/tags/{tag_id}')
+async def remove_tag_from_campaign(campaign_id: int, tag_id: int, db: AsyncSession = Depends(get_db)):
+    """Remove a tag from a campaign"""
+    success = await tag_service.remove_tag_from_campaign(db, campaign_id, tag_id)
+    if not success:
+        raise HTTPException(status_code=400, detail='Failed to remove tag from campaign')
+    return {'message': 'Tag removed from campaign successfully'}
+
+@router.get('/campaigns')
+async def get_campaigns(db: AsyncSession = Depends(get_db)):
+    """Get all campaigns with template and language counts"""
+    campaigns = await campaign_service.get_all_campaigns(db)
+    return campaigns
+
+@router.get('/templates')
+async def get_templates(db: AsyncSession = Depends(get_db)):
+    """Get all templates with campaign information"""
+    templates = await template_service.get_all_templates(db)
+    return templates
+
+@router.delete('/template/{template_id}')
+async def delete_template(template_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a template"""
+    success = await template_service.delete_template(db, template_id)
+    if not success:
+        raise HTTPException(status_code=404, detail='Template not found')
+    return {'message': 'Template deleted successfully'}
 

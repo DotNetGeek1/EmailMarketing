@@ -28,5 +28,38 @@ class TemplateService:
 
     async def get_placeholders(self, db: AsyncSession, template_id: int) -> list[str]:
         result = await db.execute(select(Placeholder.key).filter_by(template_id=template_id))
-        return result.scalars().all()
+        return list(result.scalars().all())
+
+    async def get_all_templates(self, db: AsyncSession) -> list[dict]:
+        """Get all templates with campaign information and placeholders"""
+        result = await db.execute(
+            select(Template)
+            .order_by(Template.created_at.desc())
+        )
+        templates = result.scalars().all()
+        
+        # Convert to list of dictionaries with placeholders
+        template_list = []
+        for template in templates:
+            placeholders = await self.get_placeholders(db, int(template.id))
+            template_dict = {
+                'id': template.id,
+                'campaign_id': template.campaign_id,
+                'filename': template.filename,
+                'content': template.content,
+                'created_at': template.created_at.isoformat(),
+                'placeholders': placeholders
+            }
+            template_list.append(template_dict)
+        
+        return template_list
+
+    async def delete_template(self, db: AsyncSession, template_id: int) -> bool:
+        """Delete a template and its placeholders"""
+        template = await db.get(Template, template_id)
+        if template:
+            await db.delete(template)
+            await db.commit()
+            return True
+        return False
 
