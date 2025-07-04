@@ -5,7 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 
 export interface TestResult {
   id: number;
-  status: 'passed' | 'failed' | 'error';
+  status: 'passed' | 'failed' | 'error' | 'running';
   execution_time: string;
   duration_ms: number;
   error_message?: string;
