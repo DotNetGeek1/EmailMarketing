@@ -5,28 +5,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from jinja2 import Template as JinjaTemplate
 from ..models import Project, GeneratedEmail, LocalizedCopy, Template, Placeholder
+from ..data_access.project_repository import ProjectRepository
+from ..data_access.template_repository import TemplateRepository
+from ..data_access.localized_copy_repository import LocalizedCopyRepository
+from ..data_access.placeholder_repository import PlaceholderRepository
+from ..data_access.generated_email_repository import GeneratedEmailRepository
 from datetime import datetime
 
 
 class EmailService:
     """Generate localized HTML emails with screenshot thumbnails."""
 
+    def __init__(self):
+        self.project_repository = ProjectRepository()
+        self.template_repository = TemplateRepository()
+        self.localized_copy_repository = LocalizedCopyRepository()
+        self.placeholder_repository = PlaceholderRepository()
+        self.generated_email_repository = GeneratedEmailRepository()
+
     async def generate_emails(self, db: AsyncSession, project_id: int) -> dict | None:
         try:
-            project = await db.get(Project, project_id)
+            project = await self.project_repository.get(db, project_id)
             if project is None:
                 return None
             
             # Get templates for this project
-            result = await db.execute(select(Template).filter_by(project_id=project_id))
-            templates = list(result.scalars().all())
+            templates = await self.template_repository.get_by_project(db, project_id)
             
             if len(templates) == 0:
                 return {'generated': 0, 'emails': []}
             
             # Get all copy entries for this project
-            copy_res = await db.execute(select(LocalizedCopy).filter_by(project_id=project_id))
-            copies = list(copy_res.scalars().all())
+            copies = await self.localized_copy_repository.get_by_project(db, project_id)
             
             if len(copies) == 0:
                 return {'generated': 0, 'emails': []}
@@ -36,8 +46,8 @@ class EmailService:
             
             for template in templates:
                 # Get placeholders for this template
-                ph_res = await db.execute(select(Placeholder.key).filter_by(template_id=template.id))
-                placeholders = {str(row) for row in ph_res.scalars().all()}
+                placeholder_keys = await self.placeholder_repository.get_keys_by_template(db, getattr(template, 'id'))
+                placeholders = {str(key) for key in placeholder_keys}
                 
                 # Get unique locales from copy entries
                 locales = {c.locale for c in copies}
@@ -75,8 +85,7 @@ class EmailService:
                             language=locale,  # keep field name for now
                             html_content=html,
                         )
-                        db.add(email)
-                        await db.flush()  # Flush to get the ID
+                        email = await self.generated_email_repository.create(db, email)
 
                         # --- Screenshot logic ---
                         guid = str(uuid.uuid4())

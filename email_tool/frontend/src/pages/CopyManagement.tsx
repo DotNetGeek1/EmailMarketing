@@ -1,35 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useProject } from '../contexts/ProjectContext';
+import { useToast } from '../contexts/ToastContext';
+import { Page } from '../types/navigation';
+import Breadcrumb from '../components/Breadcrumb';
 import Modal from '../components/Modal';
-import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PlaceholderBadge from '../components/PlaceholderBadge';
 import CSVImportModal from '../components/CSVImportModal';
 import { apiUrl } from '../config';
-import { useToast } from '../contexts/ToastContext';
 
-interface CopyEntry {
-  id: number;
-  project_id: number;
-  locale: string;
-  key: string;
-  value: string;
-  created_at: string;
-  status: string;
-  comments: string;
+interface CopyManagementProps {
+  onNavigate: (page: Page, params?: Record<string, any>) => void;
+  params?: {
+    projectId?: number;
+    groupId?: number;
+    groupName?: string;
+    templateId?: number;
+    templateName?: string;
+  };
 }
 
-interface Project {
-  id: number;
-  name: string;
-  templates_count: number;
-  languages_count: number;
-}
-
-interface Template {
-  id: number;
-  project_id: number;
-  filename: string;
-  placeholders: string[];
+interface CopyData {
+  [placeholderName: string]: {
+    [locale: string]: { 
+      copy_text: string; 
+      status: string; 
+      id?: number; 
+      comments?: any[] 
+    };
+  };
 }
 
 interface Tag {
@@ -39,171 +38,268 @@ interface Tag {
   description?: string;
 }
 
-const CopyManagement: React.FC = () => {
-  const { showSuccess, showError, showInfo } = useToast();
-  const [copyEntries, setCopyEntries] = useState<CopyEntry[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [templates, setTemplates] = useState<Template[]>([]);
+const CopyManagement: React.FC<CopyManagementProps> = ({ onNavigate, params }) => {
+  const { currentProject } = useProject();
+  const { showSuccess, showError } = useToast();
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [copyItems, setCopyItems] = useState<any[]>([]); // Used in processCopyEntries function
+  const [templatePlaceholders, setTemplatePlaceholders] = useState<string[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [locales, setLocales] = useState<string[]>(['en']);
+  const [copyData, setCopyData] = useState<CopyData>({});
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<string>('');
-  const [selectedLanguage, setSelectedLanguage] = useState('');
-  const [selectedTag, setSelectedTag] = useState('');
-  const [copyValue, setCopyValue] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [newEntry, setNewEntry] = useState({
-    locale: '',
-    key: '',
-    value: ''
-  });
-  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
-  const [deleteTimeout, setDeleteTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [selectedCopyEntry, setSelectedCopyEntry] = useState<{ placeholderName: string; locale: string } | null>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [addingComment, setAddingComment] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
-  const languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh'];
+  const projectId = params?.projectId || currentProject?.id;
+  const groupId = params?.groupId;
+  const groupName = params?.groupName;
+  const templateId = params?.templateId;
+  const templateName = params?.templateName;
 
-  useEffect(() => {
-    fetchData();
+  const processCopyEntries = useCallback((copyEntries: any[], placeholders: string[]) => {
+    const newCopyData: CopyData = {};
+    const usedLocales = new Set<string>();
+
+    // Initialize copy data for all template placeholders
+    placeholders.forEach(placeholder => {
+      newCopyData[placeholder] = {};
+    });
+
+    // Process existing copy entries
+    copyEntries.forEach(entry => {
+      if (!newCopyData[entry.placeholder_name]) {
+        newCopyData[entry.placeholder_name] = {};
+      }
+      newCopyData[entry.placeholder_name][entry.locale] = {
+        copy_text: entry.copy_text,
+        status: entry.status,
+        id: entry.id,
+        comments: entry.comments || [],
+      };
+      usedLocales.add(entry.locale);
+    });
+
+    setCopyData(newCopyData);
+    setLocales(Array.from(usedLocales).sort());
   }, []);
 
-  const fetchData = async () => {
+  const loadData = useCallback(async () => {
+    if (!projectId || !templateId) return;
+    setLoading(true);
     try {
-      setLoading(true);
+      const [copyResponse, placeholdersResponse, tagsResponse] = await Promise.all([
+        fetch(apiUrl(`/localized-copy?project_id=${projectId}&template_id=${templateId}`)),
+        fetch(apiUrl(`/placeholders/${templateId}`)),
+        fetch(apiUrl('/tags'))
+      ]);
       
-      // Fetch projects
-      const projectsResponse = await fetch(apiUrl('/projects'));
-      if (projectsResponse.ok) {
-        const projectsData = await projectsResponse.json();
-        setProjects(projectsData);
+      let placeholders: string[] = [];
+      
+      if (placeholdersResponse.ok) {
+        const placeholdersData = await placeholdersResponse.json();
+        placeholders = placeholdersData.placeholders || [];
+        setTemplatePlaceholders(placeholders);
+      }
+      
+      if (copyResponse.ok) {
+        const copyData = await copyResponse.json();
+        setCopyItems(copyData);
+        processCopyEntries(copyData, placeholders);
       }
 
-      // Fetch templates
-      const templatesResponse = await fetch(apiUrl('/templates'));
-      if (templatesResponse.ok) {
-        const templatesData = await templatesResponse.json();
-        setTemplates(templatesData);
-      }
-
-      // Fetch tags
-      const tagsResponse = await fetch(apiUrl('/tags'));
       if (tagsResponse.ok) {
         const tagsData = await tagsResponse.json();
         setTags(tagsData);
       }
-      
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, templateId]);
 
-  const fetchCopyEntries = async (projectId: string) => {
-    if (!projectId) {
-      setCopyEntries([]);
-      return;
-    }
-    
-    try {
-      const response = await fetch(apiUrl(`/copy/${projectId}`));
-      if (response.ok) {
-        const data = await response.json();
-        setCopyEntries(data);
-      } else {
-        console.error('Failed to fetch copy entries');
-        setCopyEntries([]);
-      }
-    } catch (error) {
-      console.error('Error fetching copy entries:', error);
-      setCopyEntries([]);
+  const addLocale = () => {
+    const newLocale = prompt('Enter new locale code (e.g., en-GB, fr-CA):');
+    if (newLocale && !locales.includes(newLocale)) {
+      setLocales([...locales, newLocale]);
     }
   };
 
-  const handleProjectChange = (projectId: string) => {
-    setSelectedProject(projectId);
-    setSelectedTag('');
-    fetchCopyEntries(projectId);
-  };
-
-  const getAvailableTags = () => {
-    // Return all tags for now - in a real implementation, you might want to filter by project
-    return tags;
-  };
-
-  const addCopyEntry = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProject || !newEntry.locale || !newEntry.key || !newEntry.value) return;
-    
-    setSubmitting(true);
-    try {
-      const formData = new FormData();
-      formData.append('key', newEntry.key);
-      formData.append('value', newEntry.value);
-
-      const response = await fetch(apiUrl(`/copy/${selectedProject}/${newEntry.locale}`), {
-        method: 'POST',
-        body: formData,
+  const removeLocale = (localeToRemove: string) => {
+    if (locales.length > 1) {
+      setLocales(locales.filter(l => l !== localeToRemove));
+      const newCopyData = { ...copyData };
+      Object.keys(newCopyData).forEach(placeholderName => {
+        if (newCopyData[placeholderName][localeToRemove]) {
+          delete newCopyData[placeholderName][localeToRemove];
+        }
       });
+      setCopyData(newCopyData);
+    }
+  };
 
-      if (response.ok) {
-        const result = await response.json();
-        // Refresh copy entries to show the new entry
-        await fetchCopyEntries(selectedProject);
-        setNewEntry({ locale: '', key: '', value: '' });
-        setShowAddForm(false);
-        showSuccess('Copy Added', 'Copy entry has been added successfully.');
-      } else {
-        throw new Error('Failed to add copy entry');
-      }
+  const updateCopyValue = (placeholderName: string, locale: string, value: string) => {
+    setCopyData(prev => ({
+      ...prev,
+      [placeholderName]: {
+        ...prev[placeholderName],
+        [locale]: {
+          ...prev[placeholderName][locale],
+          copy_text: value,
+        },
+      },
+    }));
+  };
+
+  const updateCopyStatus = (placeholderName: string, locale: string, status: string) => {
+    setCopyData(prev => ({
+      ...prev,
+      [placeholderName]: {
+        ...prev[placeholderName],
+        [locale]: {
+          ...prev[placeholderName][locale],
+          status,
+        },
+      },
+    }));
+  };
+
+  const saveAllCopy = async () => {
+    if (!projectId || !templateId) return;
+    setSaving(true);
+    try {
+      const promises: Promise<any>[] = [];
+      Object.keys(copyData).forEach(placeholderName => {
+        Object.keys(copyData[placeholderName]).forEach(locale => {
+          const entry = copyData[placeholderName][locale];
+          if (entry.copy_text && entry.copy_text.trim()) {
+            const formData = new FormData();
+            formData.append('project_id', projectId.toString());
+            formData.append('template_id', templateId.toString());
+            formData.append('placeholder_name', placeholderName);
+            formData.append('copy_text', entry.copy_text.trim());
+            formData.append('locale', locale);
+            formData.append('status', entry.status || 'Draft');
+            promises.push(
+              fetch(apiUrl('/localized-copy'), {
+                method: 'POST',
+                body: formData,
+              })
+            );
+          }
+        });
+      });
+      await Promise.all(promises);
+      await loadData();
+      showSuccess('Copy Saved', 'All copy entries have been saved successfully.');
     } catch (error) {
-      console.error('Error adding copy entry:', error);
-      showError('Addition Failed', 'Failed to add copy entry. Please try again.');
+      showError('Save Failed', 'Failed to save copy entries. Please try again.');
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   };
 
-  const deleteCopyEntry = async (id: number) => {
-    if (pendingDeleteId !== id) {
-      setPendingDeleteId(id);
-      showInfo('Confirm Delete', 'Click delete again to confirm.');
-      if (deleteTimeout) clearTimeout(deleteTimeout);
-      setDeleteTimeout(setTimeout(() => setPendingDeleteId(null), 5000));
-      return;
-    }
-    setPendingDeleteId(null);
-    if (deleteTimeout) clearTimeout(deleteTimeout);
+  const openCommentsModal = async (placeholderName: string, locale: string) => {
+    setSelectedCopyEntry({ placeholderName, locale });
+    setShowCommentsModal(true);
+    setNewComment('');
+    await fetchComments(placeholderName, locale);
+  };
+
+  const fetchComments = async (placeholderName: string, locale: string) => {
+    if (!projectId) return;
+    
+    setLoadingComments(true);
     try {
-      const entry = copyEntries.find(e => e.id === id);
-      if (!entry) return;
-      const response = await fetch(apiUrl(`/copy/${selectedProject}/${entry.locale}/${entry.key}`), {
-        method: 'DELETE',
-      });
+      // For now, we'll use a simple approach - in a real app, you'd have a comments endpoint
+      setComments([]);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      setComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const addComment = async () => {
+    if (!projectId || !selectedCopyEntry || !newComment.trim()) return;
+    
+    setAddingComment(true);
+    try {
+      // For now, we'll just add to local state - in a real app, you'd save to backend
+      const newCommentData = {
+        comment: newComment.trim(),
+        created_at: new Date().toISOString()
+      };
+      setComments(prev => [...prev, newCommentData]);
+      setNewComment('');
+      showSuccess('Comment Added', 'Comment has been added successfully.');
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      showError('Comment Failed', 'Failed to add comment. Please try again.');
+    } finally {
+      setAddingComment(false);
+    }
+  };
+
+  const closeCommentsModal = () => {
+    setShowCommentsModal(false);
+    setSelectedCopyEntry(null);
+    setComments([]);
+    setNewComment('');
+  };
+
+  const handleGenerateEmails = async () => {
+    if (!projectId) return;
+    setGenerating(true);
+    try {
+      const response = await fetch(apiUrl(`/generate/${projectId}`), { method: 'POST' });
       if (response.ok) {
-        setCopyEntries(prev => prev.filter(entry => entry.id !== id));
-        showSuccess('Copy Deleted', 'Copy entry has been deleted successfully.');
+        showSuccess('Emails Generated', 'Emails have been generated successfully.');
+        // Optionally, navigate to the marketing group or refresh emails
+        // onNavigate('marketing-groups', { projectId });
+        loadData();
       } else {
-        showError('Deletion Failed', 'Failed to delete copy entry. Please try again.');
+        showError('Generation Failed', 'Failed to generate emails.');
       }
     } catch (error) {
-      console.error('Error deleting copy entry:', error);
-      showError('Deletion Failed', 'Failed to delete copy entry. Please try again.');
+      showError('Generation Failed', 'Failed to generate emails.');
+    } finally {
+      setGenerating(false);
     }
   };
 
-  const getLanguageName = (code: string) => {
-    const languageNames: { [key: string]: string } = {
-      en: 'English', es: 'Spanish', fr: 'French', de: 'German',
-      it: 'Italian', pt: 'Portuguese', ja: 'Japanese', ko: 'Korean', zh: 'Chinese'
-    };
-    return languageNames[code] || code;
-  };
+  useEffect(() => {
+    if (projectId && templateId) {
+      loadData();
+    }
+  }, [projectId, templateId, loadData]);
 
-  const handleImportComplete = () => {
-    // Refresh the copy entries after import
-    fetchData();
-  };
+  if (!projectId || !templateId) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Invalid project or template</p>
+      </div>
+    );
+  }
+
+  const breadcrumbItems = [
+    { label: 'Projects', page: 'projects' as Page },
+    { label: currentProject?.name || 'Project', page: 'project-detail' as Page },
+    { label: 'Marketing Groups', page: 'marketing-groups' as Page },
+    { label: groupName || 'Marketing Group', page: 'templates' as Page, params: { projectId, groupId, groupName } },
+    { label: templateName || 'Template' }
+  ];
 
   if (loading) {
     return <LoadingSpinner />;
@@ -211,183 +307,175 @@ const CopyManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} onNavigate={onNavigate} />
+
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Copy Management</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage localized copy for your email projects.</p>
+          <h1 className="text-2xl font-bold text-brand-text">Copy Management</h1>
+          <p className="text-sm text-gray-400 mt-1">
+            Manage localized copy for {templateName} template.
+          </p>
         </div>
         <div className="flex space-x-3">
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-accent hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          <button 
+            onClick={() => setShowImportModal(true)} 
+            className="px-3 py-1 rounded bg-green-600 text-white text-sm hover:bg-green-700 transition-colors"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
             Import CSV
           </button>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+          <button 
+            onClick={addLocale} 
+            className="px-3 py-1 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Add Copy
+            Add Locale
+          </button>
+          <button
+            onClick={handleGenerateEmails}
+            disabled={generating}
+            className="px-3 py-1 rounded bg-brand-accent text-white text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {generating ? 'Generating...' : 'Generate Email'}
           </button>
         </div>
       </div>
 
-      <Modal title="Add Copy Entry" isOpen={showAddForm} onClose={() => setShowAddForm(false)}>
-        <form onSubmit={addCopyEntry}>
-          <FormField
-            label="Project"
-            type="select"
-            value={selectedProject}
-            onChange={(e) => handleProjectChange(e.target.value)}
-            options={projects.map(p => ({ value: p.id.toString(), label: p.name }))}
-            required
-          />
-          <FormField
-            label="Language"
-            type="select"
-            value={newEntry.locale}
-            onChange={(e) => setNewEntry(prev => ({ ...prev, locale: e.target.value }))}
-            options={languages.map(l => ({ value: l, label: getLanguageName(l) }))}
-            required
-          />
-          <FormField
-            label="Tag"
-            type="select"
-            value={newEntry.key}
-            onChange={(e) => setNewEntry(prev => ({ ...prev, key: e.target.value }))}
-            options={getAvailableTags().map(tag => ({ value: tag.name, label: tag.name }))}
-            required
-          />
-          <FormField
-            label="Copy Value"
-            type="textarea"
-            value={newEntry.value}
-            onChange={(e) => setNewEntry(prev => ({ ...prev, value: e.target.value }))}
-            placeholder="Enter the localized copy text"
-            required
-          />
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 transition-colors"
-            >
-              {submitting ? 'Adding...' : 'Add'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
+      {/* CSV Import Modal */}
       <CSVImportModal
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
-        onImportComplete={handleImportComplete}
-        projects={projects}
+        onImportComplete={() => { setShowImportModal(false); loadData(); }}
+        projects={[{ id: projectId!, name: currentProject?.name || 'Project' }]}
         availableTags={tags}
+        templateId={templateId!}
       />
 
-      <div className="bg-brand-panel border border-brand-dark rounded-lg shadow p-6 text-[#f4f4f4] transition-colors duration-200">
-        {/* Project Selector */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Project
-          </label>
-          <select
-            value={selectedProject}
-            onChange={(e) => handleProjectChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-brand-accent"
-          >
-            <option value="">Choose a project...</option>
-            {projects.map(project => (
-              <option key={project.id} value={project.id.toString()}>
-                {project.name}
-              </option>
+      {/* Copy Table */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead>
+            <tr>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Placeholder</th>
+              {locales.map(locale => (
+                <th key={locale} className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {locale}
+                  {locale !== 'en' && (
+                    <button 
+                      onClick={() => removeLocale(locale)} 
+                      className="ml-2 text-xs text-red-500 hover:text-red-700"
+                    >
+                      &times;
+                    </button>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {templatePlaceholders.map(placeholderName => (
+              <tr key={placeholderName}>
+                <td className="px-4 py-2 font-mono text-xs text-gray-700 dark:text-gray-200">
+                  <PlaceholderBadge value={placeholderName} isTag={true} />
+                </td>
+                {locales.map(locale => {
+                  const entry = copyData[placeholderName]?.[locale] || { copy_text: '', status: 'Draft' };
+                  return (
+                    <td key={locale} className="px-4 py-2">
+                      <textarea
+                        className="w-full border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                        value={entry.copy_text}
+                        onChange={e => updateCopyValue(placeholderName, locale, e.target.value)}
+                        rows={2}
+                        placeholder={`Enter ${placeholderName} for ${locale}...`}
+                      />
+                      <div className="flex items-center mt-1 space-x-2">
+                        <select
+                          value={entry.status}
+                          onChange={e => updateCopyStatus(placeholderName, locale, e.target.value)}
+                          className="border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                        >
+                          <option value="Draft">Draft</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Approved">Approved</option>
+                        </select>
+                        <button 
+                          onClick={() => openCommentsModal(placeholderName, locale)} 
+                          className="ml-2 text-xs text-blue-500 hover:text-blue-700"
+                        >
+                          Comments
+                        </button>
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
             ))}
-          </select>
-        </div>
+          </tbody>
+        </table>
+      </div>
 
-        {copyEntries.length === 0 ? (
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-              {selectedProject ? 'No copy entries' : 'Select a project'}
-            </h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {selectedProject 
-                ? 'Get started by adding localized copy for this project.'
-                : 'Choose a project to view its copy entries.'
-              }
-            </p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {copyEntries.map((entry) => (
-              <li key={entry.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {projects.find(p => p.id === entry.project_id)?.name || 'Unknown Project'}
-                          </span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">{getLanguageName(entry.locale)}</span>
-                        </div>
-                        <div className="mt-1">
-                          <PlaceholderBadge 
-                            value={entry.key} 
-                            isTag={true}
-                            color={tags.find(t => t.name === entry.key)?.color}
-                          />
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-300 mt-2 max-w-md">
-                          {entry.value}
-                        </div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          Added {new Date(entry.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">Edit</button>
-                      <button
-                        onClick={() => deleteCopyEntry(entry.id)}
-                        disabled={pendingDeleteId !== null && pendingDeleteId !== entry.id}
-                        className="text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
-                      >
-                        {pendingDeleteId === entry.id ? 'Confirm Delete' : 'Delete'}
-                      </button>
-                    </div>
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={saveAllCopy}
+          disabled={saving}
+          className="px-6 py-2 bg-brand-accent text-white rounded shadow disabled:opacity-50 hover:bg-blue-700 transition-colors"
+        >
+          {saving ? 'Saving...' : 'Save All'}
+        </button>
+      </div>
+
+      {/* Comments Modal */}
+      <Modal
+        title={`Comments for ${selectedCopyEntry?.placeholderName} (${selectedCopyEntry?.locale})`}
+        isOpen={showCommentsModal}
+        onClose={closeCommentsModal}
+      >
+        <div className="space-y-4">
+          {/* Comments List */}
+          <div className="max-h-64 overflow-y-auto space-y-3">
+            {loadingComments ? (
+              <div className="flex justify-center py-4">
+                <LoadingSpinner />
+              </div>
+            ) : comments.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No comments yet</p>
+            ) : (
+              comments.map((comment, index) => (
+                <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded p-3">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm text-gray-900 dark:text-white">{comment.comment}</p>
+                    <span className="text-xs text-gray-500 ml-2">
+                      {new Date(comment.created_at).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+              ))
+            )}
+          </div>
+          
+          {/* Add Comment Form */}
+          <div className="border-t pt-4">
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="w-full border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
+              rows={3}
+            />
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={addComment}
+                disabled={!newComment.trim() || addingComment}
+                className="px-4 py-2 bg-brand-accent text-white rounded text-sm disabled:opacity-50 hover:bg-blue-700 transition-colors"
+              >
+                {addingComment ? 'Adding...' : 'Add Comment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

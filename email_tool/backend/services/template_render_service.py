@@ -7,17 +7,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..models.template import Template
 from ..models.placeholder import Placeholder
+from ..data_access.template_repository import TemplateRepository
+from ..data_access.placeholder_repository import PlaceholderRepository
 
 class TemplateRenderService:
     def __init__(self):
         self.screenshots_dir = Path("static/screenshots")
         self.screenshots_dir.mkdir(parents=True, exist_ok=True)
+        self.template_repository = TemplateRepository()
+        self.placeholder_repository = PlaceholderRepository()
     
     async def render_template_to_image(self, db: AsyncSession, template_id: int) -> str:
         """Render a template to an image and return the file path"""
-        # Get template from database using async query
-        result = await db.execute(select(Template).filter(Template.id == template_id))
-        template = result.scalar_one_or_none()
+        # Get template from database using repository
+        template = await self.template_repository.get(db, template_id)
         if not template:
             raise ValueError("Template not found")
         
@@ -64,15 +67,14 @@ class TemplateRenderService:
     
     async def get_template_preview(self, db: AsyncSession, template_id: int) -> dict:
         """Get template preview with rendered image"""
-        # Get template using async query
-        result = await db.execute(select(Template).filter(Template.id == template_id))
-        template = result.scalar_one_or_none()
+        # Get template using repository
+        template = await self.template_repository.get(db, template_id)
         if not template:
             raise ValueError("Template not found")
         
         # Get placeholder keys
-        placeholder_result = await db.execute(select(Placeholder.key).filter(Placeholder.template_id == template_id))
-        placeholders = [row[0] for row in placeholder_result.fetchall()]
+        placeholder_keys = await self.placeholder_repository.get_keys_by_template(db, template_id)
+        placeholders = [key for key in placeholder_keys]
         
         # Check if preview image already exists
         existing_files = list(self.screenshots_dir.glob(f"template_{template_id}_*.png"))

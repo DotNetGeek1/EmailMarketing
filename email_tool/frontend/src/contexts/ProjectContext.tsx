@@ -2,6 +2,17 @@ import React, { createContext, useContext, useState, ReactNode, useCallback } fr
 import { apiUrl } from '../config';
 import { useCustomer } from './CustomerContext';
 
+export interface MarketingGroup {
+  id: number;
+  project_id: number;
+  type: {
+    id: number;
+    label: string;
+    code: string;
+  };
+  created_at: string;
+}
+
 export interface Project {
   id: number;
   name: string;
@@ -9,12 +20,8 @@ export interface Project {
   templates_count: number;
   languages_count: number;
   status?: string;
-  marketing_group_id?: number;
-  marketing_group?: {
-    id: number;
-    name: string;
-    code: string;
-  };
+  customer_id?: number;
+  marketing_groups?: MarketingGroup[];
   tags?: Tag[];
 }
 
@@ -132,6 +139,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         const emailsData = await emailsResponse.json();
         setGeneratedEmails(emailsData);
       }
+      // Note: Marketing groups are handled by MarketingGroupContext to avoid infinite loops
     } catch (error) {
       console.error('Error refreshing project data:', error);
     }

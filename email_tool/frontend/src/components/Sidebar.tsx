@@ -1,6 +1,5 @@
 import React from 'react';
-
-type Page = 'dashboard' | 'projects' | 'project-detail' | 'testing' | 'tags' | 'test-builder';
+import { Page } from '../types/navigation';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,6 +14,7 @@ const navigation: Array<{ name: string; page: Page; icon: string }> = [
   { name: 'Testing', page: 'testing', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
   { name: 'Tag Management', page: 'tags', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z' },
   { name: 'Test Builder', page: 'test-builder', icon: 'M12 4v16m8-8H4' },
+  { name: 'Marketing Group Types', page: 'marketing-group-types', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentPage, onPageChange, onClose }) => {

@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from bs4 import BeautifulSoup
 from ..models import TestScenario, TestStep, TestResult
+from ..data_access.test_scenario_repository import TestScenarioRepository
+from ..data_access.test_step_repository import TestStepRepository
+from ..data_access.test_result_repository import TestResultRepository
 from playwright.async_api import async_playwright
 import json
 from datetime import datetime
@@ -14,6 +17,11 @@ from datetime import datetime
 
 class TestBuilderService:
     """Handle test scenario management, HTML parsing, and test execution."""
+
+    def __init__(self):
+        self.test_scenario_repository = TestScenarioRepository()
+        self.test_step_repository = TestStepRepository()
+        self.test_result_repository = TestResultRepository()
 
     async def create_test_scenario(
         self,
@@ -30,10 +38,7 @@ class TestBuilderService:
             html_content=html_content,
             html_filename=html_filename
         )
-        db.add(scenario)
-        await db.commit()
-        await db.refresh(scenario)
-        return scenario
+        return await self.test_scenario_repository.create(db, scenario)
 
     async def extract_data_testids(self, html_content: str) -> List[Dict[str, str]]:
         """Extract all data-testid attributes from HTML content."""
@@ -76,34 +81,20 @@ class TestBuilderService:
             attr=attr,
             description=description
         )
-        db.add(step)
-        await db.commit()
-        await db.refresh(step)
-        return step
+        return await self.test_step_repository.create(db, step)
 
     async def get_test_scenarios(self, db: AsyncSession) -> List[Dict]:
         """Get all test scenarios with their step counts and latest results."""
-        result = await db.execute(
-            select(TestScenario).order_by(desc(TestScenario.created_at))
-        )
-        scenarios = result.scalars().all()
+        scenarios = await self.test_scenario_repository.get_all(db)
         
         scenario_list = []
         for scenario in scenarios:
             # Get step count
-            steps_result = await db.execute(
-                select(TestStep).filter(TestStep.scenario_id == scenario.id)
-            )
-            step_count = len(steps_result.scalars().all())
+            steps = await self.test_step_repository.get_by_scenario(db, getattr(scenario, 'id'))
+            step_count = len(steps)
             
             # Get latest result
-            latest_result_result = await db.execute(
-                select(TestResult)
-                .filter(TestResult.scenario_id == scenario.id)
-                .order_by(desc(TestResult.execution_time))
-                .limit(1)
-            )
-            latest_result = latest_result_result.scalar_one_or_none()
+            latest_result = await self.test_result_repository.get_latest_by_scenario(db, getattr(scenario, 'id'))
             
             scenario_dict = {
                 'id': scenario.id,
@@ -126,25 +117,15 @@ class TestBuilderService:
 
     async def get_test_scenario(self, db: AsyncSession, scenario_id: int) -> Optional[Dict]:
         """Get a specific test scenario with all its steps."""
-        scenario = await db.get(TestScenario, scenario_id)
+        scenario = await self.test_scenario_repository.get(db, scenario_id)
         if not scenario:
             return None
         
         # Get all steps
-        steps_result = await db.execute(
-            select(TestStep)
-            .filter(TestStep.scenario_id == scenario_id)
-            .order_by(TestStep.step_order)
-        )
-        steps = steps_result.scalars().all()
+        steps = await self.test_step_repository.get_by_scenario(db, scenario_id)
         
         # Get all results
-        results_result = await db.execute(
-            select(TestResult)
-            .filter(TestResult.scenario_id == scenario_id)
-            .order_by(desc(TestResult.execution_time))
-        )
-        results = results_result.scalars().all()
+        results = await self.test_result_repository.get_by_scenario(db, scenario_id)
         
         return {
             'id': scenario.id,
@@ -193,7 +174,7 @@ class TestBuilderService:
         description: Optional[str] = None
     ) -> Optional[TestStep]:
         """Update an existing test step."""
-        step = await db.get(TestStep, step_id)
+        step = await self.test_step_repository.get(db, step_id)
         if not step:
             return None
         
@@ -210,35 +191,28 @@ class TestBuilderService:
 
     async def delete_test_step(self, db: AsyncSession, step_id: int) -> bool:
         """Delete a test step."""
-        step = await db.get(TestStep, step_id)
+        step = await self.test_step_repository.get(db, step_id)
         if step:
-            await db.delete(step)
-            await db.commit()
+            await self.test_step_repository.delete(db, step_id)
             return True
         return False
 
     async def delete_test_scenario(self, db: AsyncSession, scenario_id: int) -> bool:
         """Delete a test scenario and all its steps and results."""
-        scenario = await db.get(TestScenario, scenario_id)
+        scenario = await self.test_scenario_repository.get(db, scenario_id)
         if scenario:
-            await db.delete(scenario)
-            await db.commit()
+            await self.test_scenario_repository.delete(db, scenario_id)
             return True
         return False
 
     async def run_test_scenario(self, db: AsyncSession, scenario_id: int) -> Dict:
         """Run a test scenario using Playwright and return results."""
-        scenario = await db.get(TestScenario, scenario_id)
+        scenario = await self.test_scenario_repository.get(db, scenario_id)
         if not scenario:
             return {'error': 'Test scenario not found'}
         
         # Get all steps
-        steps_result = await db.execute(
-            select(TestStep)
-            .filter(TestStep.scenario_id == scenario_id)
-            .order_by(TestStep.step_order)
-        )
-        steps = steps_result.scalars().all()
+        steps = await self.test_step_repository.get_by_scenario(db, scenario_id)
         
         if not steps:
             return {'error': 'No test steps found for this scenario'}

@@ -17,6 +17,7 @@ from sqlalchemy import select
 from ..models.generated_email import GeneratedEmail
 from ..models.customer import Customer
 from ..models.copy_comment import CopyComment
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -51,17 +52,19 @@ class TestStep(BaseModel):
 class TestConfig(BaseModel):
     steps: List[TestStep]
 
+from ..data_access.customer_repository import CustomerRepository
+
+customer_repository = CustomerRepository()
+
 @router.post('/customer')
 async def create_customer(name: str = Form(...), db: AsyncSession = Depends(get_db)):
     customer = Customer(name=name)
-    db.add(customer)
-    await db.commit()
-    await db.refresh(customer)
+    customer = await customer_repository.create(db, customer)
     return {'id': customer.id, 'name': customer.name, 'created_at': customer.created_at.isoformat()}
 
 @router.get('/customers')
 async def get_customers(db: AsyncSession = Depends(get_db)):
-    customers = (await db.execute(select(Customer))).scalars().all()
+    customers = await customer_repository.get_all(db)
     return [
         {'id': c.id, 'name': c.name, 'created_at': c.created_at.isoformat()}
         for c in customers
@@ -84,16 +87,91 @@ async def create_marketing_group(
     """Create a new marketing group for a project and type (enforces uniqueness)"""
     try:
         group = await marketing_group_service.create_group(db, project_id, marketing_group_type_id)
+        # Get the group with the relationship loaded
+        group_with_type = await marketing_group_service.get_group_by_id(db, group.id)
+        if not group_with_type:
+            raise HTTPException(status_code=500, detail='Failed to retrieve created marketing group')
+        
         return {
-            'id': group.id,
-            'project_id': group.project_id,
+            'id': group_with_type.id,
+            'project_id': group_with_type.project_id,
             'type': {
-                'id': group.type.id,
-                'label': group.type.label,
-                'code': group.type.code
+                'id': group_with_type.type.id,
+                'label': group_with_type.type.label,
+                'code': group_with_type.type.code
             },
-            'created_at': group.created_at.isoformat()
+            'created_at': group_with_type.created_at.isoformat()
         }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete('/marketing-groups/{group_id}')
+async def delete_marketing_group(group_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a marketing group"""
+    try:
+        success = await marketing_group_service.delete_group(db, group_id)
+        if not success:
+            raise HTTPException(status_code=404, detail='Marketing group not found')
+        return {'message': 'Marketing group deleted successfully'}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get('/marketing-group-types')
+async def get_marketing_group_types(db: AsyncSession = Depends(get_db)):
+    """Get all marketing group types"""
+    types = await marketing_group_service.get_all_types(db)
+    return types
+
+
+@router.post('/marketing-group-types')
+async def create_marketing_group_type(
+    label: str = Form(...),
+    code: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new marketing group type"""
+    try:
+        group_type = await marketing_group_service.create_type(db, label, code)
+        return {
+            'id': group_type.id,
+            'label': group_type.label,
+            'code': group_type.code
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put('/marketing-group-types/{type_id}')
+async def update_marketing_group_type(
+    type_id: int,
+    label: str = Form(...),
+    code: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a marketing group type"""
+    try:
+        group_type = await marketing_group_service.update_type(db, type_id, label, code)
+        if not group_type:
+            raise HTTPException(status_code=404, detail='Marketing group type not found')
+        return {
+            'id': group_type.id,
+            'label': group_type.label,
+            'code': group_type.code
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete('/marketing-group-types/{type_id}')
+async def delete_marketing_group_type(type_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a marketing group type"""
+    try:
+        success = await marketing_group_service.delete_type(db, type_id)
+        if not success:
+            raise HTTPException(status_code=404, detail='Marketing group type not found')
+        return {'message': 'Marketing group type deleted successfully'}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -137,6 +215,7 @@ async def update_project_status(project_id: int, status_update: StatusUpdate, db
 @router.post('/template')
 async def upload_template(
     project_id: int = Form(...),
+    marketing_group_id: int = Form(...),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
@@ -145,7 +224,7 @@ async def upload_template(
     
     try:
         content = (await file.read()).decode('utf-8')
-        template, keys, created_tags = await template_service.upload_template(db, project_id, file.filename, content)
+        template, keys, created_tags = await template_service.upload_template(db, project_id, marketing_group_id, file.filename, content)
         if not template:
             raise HTTPException(status_code=404, detail='Project not found')
         
@@ -189,6 +268,77 @@ async def get_project_copy(project_id: int, db: AsyncSession = Depends(get_db)):
         }
         for copy in copies
     ]
+
+
+@router.get('/localized-copy')
+async def get_localized_copy(
+    project_id: Optional[int] = None, 
+    template_id: Optional[int] = None, 
+    db: AsyncSession = Depends(get_db)
+):
+    """Get localized copy entries filtered by project_id and/or template_id"""
+    if template_id and project_id:
+        copies = await copy_service.get_copies_by_template(db, project_id, template_id)
+    elif project_id:
+        copies = await copy_service.get_copies(db, project_id)
+    else:
+        copies = []
+    
+    return [
+        {
+            'id': copy.id,
+            'project_id': copy.project_id,
+            'template_id': copy.template_id,
+            'locale': copy.locale,
+            'placeholder_name': copy.key,
+            'copy_text': copy.value,
+            'status': copy.status,
+            'created_at': copy.created_at.isoformat()
+        }
+        for copy in copies
+    ]
+
+
+@router.post('/localized-copy')
+async def create_localized_copy(
+    project_id: int = Form(...),
+    template_id: int = Form(...),
+    placeholder_name: str = Form(...),
+    copy_text: str = Form(...),
+    locale: str = Form(...),
+    status: str = Form('Draft'),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new localized copy entry"""
+    try:
+        copy = await copy_service.create_copy(
+            db, project_id, template_id, placeholder_name, copy_text, locale, status
+        )
+        if not copy:
+            raise HTTPException(status_code=400, detail='Failed to create copy entry')
+        
+        return {
+            'id': copy.id,
+            'project_id': copy.project_id,
+            'template_id': copy.template_id,
+            'locale': copy.locale,
+            'placeholder_name': copy.key,
+            'copy_text': copy.value,
+            'status': copy.status,
+            'created_at': copy.created_at.isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete('/localized-copy/{copy_id}')
+async def delete_localized_copy(copy_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a localized copy entry"""
+    try:
+        await copy_service.localized_copy_repository.delete(db, copy_id)
+        return {'message': 'Copy entry deleted successfully'}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post('/copy/{project_id}/{locale}')
@@ -323,9 +473,9 @@ async def get_projects(customer_id: Optional[int] = None, db: AsyncSession = Dep
     return projects
 
 @router.get('/templates')
-async def get_templates(project_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    """Get all templates with project information, optionally filtered by project_id"""
-    templates = await template_service.get_all_templates(db, project_id)
+async def get_templates(project_id: Optional[int] = None, marketing_group_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+    """Get all templates with project information, optionally filtered by project_id and marketing_group_id"""
+    templates = await template_service.get_all_templates(db, project_id, marketing_group_id)
     return templates
 
 @router.delete('/template/{template_id}')
@@ -363,9 +513,13 @@ async def regenerate_template_preview(template_id: int, db: AsyncSession = Depen
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to regenerate preview: {str(e)}")
 
+from ..data_access.generated_email_repository import GeneratedEmailRepository
+
+generated_email_repository = GeneratedEmailRepository()
+
 @router.get('/emails/{project_id}')
 async def get_generated_emails(project_id: int, db: AsyncSession = Depends(get_db)):
-    emails = (await db.execute(select(GeneratedEmail).filter_by(project_id=project_id))).scalars().all()
+    emails = await generated_email_repository.get_by_project(db, project_id)
     # Compose thumbnail URL
     results = []
     for email in emails:
@@ -382,9 +536,13 @@ async def get_generated_emails(project_id: int, db: AsyncSession = Depends(get_d
         })
     return results
 
+from ..data_access.copy_comment_repository import CopyCommentRepository
+
+copy_comment_repository = CopyCommentRepository()
+
 @router.get('/copy/{copy_id}/comments')
 async def get_copy_comments(copy_id: int, db: AsyncSession = Depends(get_db)):
-    comments = (await db.execute(select(CopyComment).filter_by(copy_id=copy_id))).scalars().all()
+    comments = await copy_comment_repository.get_by_copy(db, copy_id)
     return [
         {
             'id': c.id,
@@ -399,9 +557,7 @@ async def get_copy_comments(copy_id: int, db: AsyncSession = Depends(get_db)):
 @router.post('/copy/{copy_id}/comments')
 async def add_copy_comment(copy_id: int, comment: str = Form(...), user: str = Form(None), db: AsyncSession = Depends(get_db)):
     new_comment = CopyComment(copy_id=copy_id, comment=comment, user=user)
-    db.add(new_comment)
-    await db.commit()
-    await db.refresh(new_comment)
+    new_comment = await copy_comment_repository.create(db, new_comment)
     return {
         'id': new_comment.id,
         'copy_id': new_comment.copy_id,
@@ -549,4 +705,27 @@ async def run_test_scenario(scenario_id: int, db: AsyncSession = Depends(get_db)
     if 'error' in result:
         raise HTTPException(status_code=400, detail=result['error'])
     return result
+
+class LocalizedCopyBulkCreate(BaseModel):
+    project_id: int
+    template_id: int
+    placeholder_name: str
+    copy_text: str
+    locale: str
+    status: str = 'Draft'
+
+@router.post("/localized-copy/bulk")
+async def bulk_create_copy(
+    items: List[LocalizedCopyBulkCreate],
+    db: AsyncSession = Depends(get_db)
+):
+    # Validate all items have a valid template_id
+    for idx, item in enumerate(items):
+        if not hasattr(item, 'template_id') or item.template_id is None:
+            return JSONResponse(status_code=400, content={"error": f"Row {idx+1} is missing template_id. All rows must include a valid template_id."})
+    try:
+        result = await copy_service.bulk_create_copies(db, [item.dict() for item in items])
+        return {"inserted": len(result)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 

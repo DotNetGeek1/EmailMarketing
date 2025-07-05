@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useProject } from '../contexts/ProjectContext';
+import { useMarketingGroup } from '../contexts/MarketingGroupContext';
 import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import FormField from '../components/FormField';
@@ -10,6 +11,7 @@ import { useCustomer } from '../contexts/CustomerContext';
 
 const Projects: React.FC = () => {
   const { setCurrentProject } = useProject();
+  const { fetchMarketingGroups } = useMarketingGroup();
   const { showSuccess, showError, showInfo } = useToast();
   const { selectedCustomer } = useCustomer();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -71,7 +73,9 @@ const Projects: React.FC = () => {
     }
   };
 
-  const openProject = (project: Project) => {
+  const openProject = async (project: Project) => {
+    // Fetch marketing groups for this project
+    await fetchMarketingGroups(project.id);
     setCurrentProject(project);
     window.history.pushState({}, '', `/project/${project.id}`);
     window.dispatchEvent(new CustomEvent('navigate', { detail: 'project-detail' }));

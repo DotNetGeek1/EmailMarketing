@@ -2,6 +2,7 @@ import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..models import GeneratedEmail, PlaywrightResult
+from ..data_access.generated_email_repository import GeneratedEmailRepository
 from ...playwright.test_runner import run as run_test
 from typing import Optional, List, Dict, Any
 
@@ -9,11 +10,11 @@ from typing import Optional, List, Dict, Any
 class TestService:
     """Execute Playwright tests against generated emails."""
 
+    def __init__(self):
+        self.generated_email_repository = GeneratedEmailRepository()
+
     async def run_tests(self, db: AsyncSession, project_id: int, test_config: Optional[Dict[str, Any]] = None) -> int:
-        result = await db.execute(
-            select(GeneratedEmail).filter_by(project_id=project_id)
-        )
-        emails = result.scalars().all()
+        emails = await self.generated_email_repository.get_by_project(db, project_id)
         
         # Extract test steps from config if provided
         test_steps = None

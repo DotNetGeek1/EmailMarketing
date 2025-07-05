@@ -16,7 +16,11 @@ app = FastAPI()
 # Add CORS middleware to allow frontend to connect
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=[
+        "http://localhost:3000",  # React (CRA)
+        "http://localhost:5173",  # Vite/React
+        # Add your production frontend URL here, e.g. "https://yourdomain.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,6 +32,15 @@ app.mount("/static", StaticFiles(directory="email_tool/backend/static"), name="s
 @app.on_event("startup")
 async def startup_event():
     await init_db()
-    # No need to seed marketing groups here; use the marketing_group_type seeding script instead.
+    print("✅ CORS middleware enabled for development origins.")
+    
+    # Seed marketing group types if they don't exist
+    try:
+        from .data_access.seed_marketing_group_types import seed_marketing_group_types
+        await seed_marketing_group_types()
+        print("✅ Marketing group types seeded successfully")
+    except Exception as e:
+        print(f"⚠️  Warning: Could not seed marketing group types: {e}")
+        # Continue anyway - the application will work without seeding
 
 app.include_router(api.router)

@@ -15,6 +15,7 @@ interface CSVImportModalProps {
   onImportComplete: () => void;
   projects: Array<{ id: number; name: string }>;
   availableTags: Array<{ id: number; name: string; color: string }>;
+  templateId: number;
 }
 
 const CSVImportModal: React.FC<CSVImportModalProps> = ({
@@ -22,7 +23,8 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
   onClose,
   onImportComplete,
   projects,
-  availableTags
+  availableTags,
+  templateId
 }) => {
   const { showSuccess, showError, showWarning } = useToast();
   const [selectedProject, setSelectedProject] = useState<string>('');
@@ -120,37 +122,37 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
 
   const handleImport = async () => {
     if (!selectedProject || !csvFile || !validationResults) return;
-    
+    if (!templateId) {
+      showError('Import Failed', 'No template selected. Please select a template before importing.');
+      return;
+    }
     setImporting(true);
     try {
       // Normalize tag names (remove {{ }} if present)
       const normalizeTag = (tag: string) => {
-        return tag.replace(/^\{\{|\}\}$/g, '').trim();
+        return tag.replace(/^[{]{2}|[}]{2}$/g, '').trim();
       };
-      
-      // Create copy entries for each valid item
-      const promises = validationResults.valid.map(item => {
-        const formData = new FormData();
-        formData.append('key', normalizeTag(item.tag)); // Normalize the tag name
-        formData.append('value', item.copy);
-        formData.append('status', 'Draft');
-        
-        return fetch(apiUrl(`/copy/${selectedProject}/${selectedLocale}`), {
-          method: 'POST',
-          body: formData,
-        });
+      // Prepare bulk payload
+      const bulkPayload = validationResults.valid.map(item => ({
+        project_id: Number(selectedProject),
+        template_id: templateId,
+        placeholder_name: normalizeTag(item.tag),
+        copy_text: item.copy,
+        locale: selectedLocale,
+        status: 'Draft',
+      }));
+      const response = await fetch(apiUrl('/localized-copy/bulk'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bulkPayload),
       });
-      
-      const results = await Promise.all(promises);
-      const failed = results.filter(r => !r.ok);
-      
-      if (failed.length === 0) {
-        showSuccess('Import Complete', `Successfully imported ${validationResults.valid.length} copy entries.`);
+      if (response.ok) {
+        showSuccess('Import Complete', `Successfully imported ${bulkPayload.length} copy entries.`);
         onImportComplete();
         onClose();
         resetForm();
       } else {
-        showError('Import Failed', `Failed to import ${failed.length} entries. Please try again.`);
+        showError('Import Failed', 'Failed to import CSV data. Please try again.');
       }
     } catch (error) {
       console.error('Error importing CSV:', error);

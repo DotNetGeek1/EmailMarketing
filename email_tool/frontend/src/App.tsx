@@ -1,22 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ProjectProvider } from './contexts/ProjectContext';
+import { MarketingGroupProvider } from './contexts/MarketingGroupContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { CustomerProvider, useCustomer } from './contexts/CustomerContext';
+import { Page } from './types/navigation';
 import LandingPage from './pages/LandingPage';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
+import MarketingGroups from './pages/MarketingGroups';
+import Templates from './pages/Templates';
+import CopyManagement from './pages/CopyManagement';
 import Testing from './pages/Testing';
 import TagManagement from './pages/TagManagement';
 import TestBuilder from './pages/TestBuilder';
-
-type Page = 'dashboard' | 'projects' | 'project-detail' | 'testing' | 'tags' | 'test-builder';
+import MarketingGroupTypes from './pages/MarketingGroupTypes';
 
 const MainApp: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    return (localStorage.getItem('currentPage') as Page) || 'dashboard';
+  });
+  const [pageParams, setPageParams] = useState<Record<string, any>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('pageParams') || '{}');
+    } catch {
+      return {};
+    }
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { selectedCustomer } = useCustomer();
 
@@ -30,6 +43,13 @@ const MainApp: React.FC = () => {
     };
   }, []);
 
+  const handleNavigate = (page: Page, params?: Record<string, any>) => {
+    setCurrentPage(page);
+    setPageParams(params || {});
+    localStorage.setItem('currentPage', page);
+    localStorage.setItem('pageParams', JSON.stringify(params || {}));
+  };
+
   if (!selectedCustomer) {
     return <LandingPage />;
   }
@@ -41,13 +61,21 @@ const MainApp: React.FC = () => {
       case 'projects':
         return <Projects />;
       case 'project-detail':
-        return <ProjectDetail />;
+        return <ProjectDetail onNavigate={handleNavigate} />;
+      case 'marketing-groups':
+        return <MarketingGroups onNavigate={handleNavigate} />;
+      case 'templates':
+        return <Templates onNavigate={handleNavigate} params={pageParams} />;
+      case 'copy':
+        return <CopyManagement onNavigate={handleNavigate} params={pageParams} />;
       case 'testing':
         return <Testing />;
       case 'tags':
         return <TagManagement />;
       case 'test-builder':
         return <TestBuilder />;
+      case 'marketing-group-types':
+        return <MarketingGroupTypes />;
       default:
         return <Dashboard />;
     }
@@ -56,7 +84,7 @@ const MainApp: React.FC = () => {
   return (
     <div className="min-h-screen bg-brand-dark text-[#f4f4f4] transition-colors duration-200">
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-      <div className="flex">
+      <div className="flex min-h-screen">
         <Sidebar 
           isOpen={sidebarOpen} 
           currentPage={currentPage}
@@ -64,9 +92,7 @@ const MainApp: React.FC = () => {
           onClose={() => setSidebarOpen(false)}
         />
         <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto">
-            {renderPage()}
-          </div>
+          {renderPage()}
         </main>
       </div>
     </div>
@@ -78,7 +104,9 @@ const App: React.FC = () => (
     <ToastProvider>
       <CustomerProvider>
         <ProjectProvider>
-          <MainApp />
+          <MarketingGroupProvider>
+            <MainApp />
+          </MarketingGroupProvider>
         </ProjectProvider>
       </CustomerProvider>
     </ToastProvider>

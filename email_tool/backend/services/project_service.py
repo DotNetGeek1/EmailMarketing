@@ -1,65 +1,64 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from ..models import Project, Template, LocalizedCopy, MarketingGroup
+from ..data_access.project_repository import ProjectRepository
+from ..data_access.template_repository import TemplateRepository
+from ..data_access.localized_copy_repository import LocalizedCopyRepository
 from typing import Optional, List, Dict, Any
 
 class ProjectService:
+    def __init__(self):
+        self.project_repository = ProjectRepository()
+        self.template_repository = TemplateRepository()
+        self.localized_copy_repository = LocalizedCopyRepository()
+
     async def create_project(self, db: AsyncSession, name: str, customer_id: Optional[int] = None) -> Project:
         """Create a new project"""
         project = Project(
             name=name,
             customer_id=customer_id
         )
-        db.add(project)
-        await db.commit()
-        await db.refresh(project)
-        return project
+        return await self.project_repository.create(db, project)
 
     async def update_project(self, db: AsyncSession, project_id: int, name: str) -> Project | None:
         """Update project name"""
-        project = await db.get(Project, project_id)
+        project = await self.project_repository.get(db, project_id)
         if project:
             project.name = name
-            await db.commit()
-            await db.refresh(project)
-        return project
+            return await self.project_repository.update(db, project)
+        return None
 
     async def update_project_status(self, db: AsyncSession, project_id: int, status: str) -> Project | None:
         """Update project status"""
-        project = await db.get(Project, project_id)
+        project = await self.project_repository.get(db, project_id)
         if project:
             project.status = status
-            await db.commit()
-            await db.refresh(project)
-        return project
+            return await self.project_repository.update(db, project)
+        return None
 
     async def get_project(self, db: AsyncSession, project_id: int) -> Project | None:
         """Get a project by ID"""
-        return await db.get(Project, project_id)
+        return await self.project_repository.get(db, project_id)
 
     async def get_projects(self, db: AsyncSession, customer_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get all projects with template and copy counts using explicit joins"""
-        # Build the base query
-        query = select(Project)
-        if customer_id is not None:
-            query = query.filter(Project.customer_id == customer_id)
+        # Get all projects
+        projects = await self.project_repository.get_all(db)
         
-        # Execute the query to get projects
-        result = await db.execute(query)
-        projects = result.unique().scalars().all()
+        # Filter by customer_id if provided
+        if customer_id is not None:
+            projects = [p for p in projects if getattr(p, 'customer_id') == customer_id]
         
         # Get counts for each project using separate queries
         project_data = []
         for project in projects:
             # Get template count
-            template_count_query = select(func.count(Template.id)).filter(Template.project_id == project.id)
-            template_result = await db.execute(template_count_query)
-            templates_count = template_result.scalar() or 0
+            templates = await self.template_repository.get_by_project(db, getattr(project, 'id'))
+            templates_count = len(templates)
             
             # Get unique locale count
-            locale_count_query = select(func.count(func.distinct(LocalizedCopy.locale))).filter(LocalizedCopy.project_id == project.id)
-            locale_result = await db.execute(locale_count_query)
-            copies_count = locale_result.scalar() or 0
+            copies = await self.localized_copy_repository.get_by_project(db, getattr(project, 'id'))
+            unique_locales = len(set(copy.locale for copy in copies))
             
             project_data.append({
                 'id': project.id,
@@ -68,7 +67,7 @@ class ProjectService:
                 'status': project.status,
                 'customer_id': project.customer_id,
                 'templates_count': templates_count,
-                'languages_count': copies_count
+                'languages_count': unique_locales
             })
         
         return project_data 

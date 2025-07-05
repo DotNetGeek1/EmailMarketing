@@ -18,6 +18,11 @@ class ProjectRepository:
         await db.refresh(project)
         return project
 
+    async def update(self, db: AsyncSession, project: Project):
+        await db.commit()
+        await db.refresh(project)
+        return project
+
     async def delete(self, db: AsyncSession, project_id: int):
         await db.execute(delete(Project).where(Project.id == project_id))
         await db.commit() 

@@ -5,20 +5,22 @@ from typing import Optional
 import random
 from ..models.tag import Tag
 from ..models.project_tag import project_tags
+from ..data_access.tag_repository import TagRepository
+from ..data_access.project_tag_repository import ProjectTagRepository
 
 class TagService:
+    def __init__(self):
+        self.tag_repository = TagRepository()
+        self.project_tag_repository = ProjectTagRepository()
+
     async def create_tag(self, db: AsyncSession, name: str, color: str, description: Optional[str] = None) -> Tag:
         """Create a new tag"""
         tag = Tag(name=name, color=color, description=description)
-        db.add(tag)
-        await db.commit()
-        await db.refresh(tag)
-        return tag
+        return await self.tag_repository.create(db, tag)
 
     async def get_tag_by_name(self, db: AsyncSession, name: str) -> Optional[Tag]:
         """Get a tag by name"""
-        result = await db.execute(select(Tag).where(Tag.name == name))
-        return result.scalar_one_or_none()
+        return await self.tag_repository.get_by_name(db, name)
 
     async def get_or_create_tag(self, db: AsyncSession, name: str, description: Optional[str] = None) -> Tag:
         """Get a tag by name or create it if it doesn't exist"""
@@ -67,53 +69,31 @@ class TagService:
 
     async def get_tag_by_id(self, db: AsyncSession, tag_id: int) -> Optional[Tag]:
         """Get a tag by ID"""
-        result = await db.execute(select(Tag).where(Tag.id == tag_id))
-        return result.scalar_one_or_none()
+        return await self.tag_repository.get(db, tag_id)
 
     async def update_tag(self, db: AsyncSession, tag_id: int, name: str, color: str, description: Optional[str] = None) -> Optional[Tag]:
         """Update a tag"""
-        tag = await db.get(Tag, tag_id)
+        tag = await self.tag_repository.get(db, tag_id)
         if tag:
             # Use setattr to avoid type annotation issues
             setattr(tag, 'name', name)
             setattr(tag, 'color', color)
             setattr(tag, 'description', description)
-            await db.commit()
-            await db.refresh(tag)
-        return tag
+            return await self.tag_repository.update(db, tag)
+        return None
 
     async def delete_tag(self, db: AsyncSession, tag_id: int) -> bool:
         """Delete a tag"""
-        tag = await self.get_tag_by_id(db, tag_id)
+        tag = await self.tag_repository.get(db, tag_id)
         if tag:
-            await db.delete(tag)
-            await db.commit()
+            await self.tag_repository.delete(db, tag_id)
             return True
         return False
 
     async def add_tag_to_project(self, db: AsyncSession, project_id: int, tag_id: int) -> bool:
         """Add a tag to a project"""
-        try:
-            await db.execute(
-                project_tags.insert().values(project_id=project_id, tag_id=tag_id)
-            )
-            await db.commit()
-            return True
-        except Exception:
-            await db.rollback()
-            return False
+        return await self.project_tag_repository.add_tag_to_project(db, project_id, tag_id)
 
     async def remove_tag_from_project(self, db: AsyncSession, project_id: int, tag_id: int) -> bool:
         """Remove a tag from a project"""
-        try:
-            await db.execute(
-                project_tags.delete().where(
-                    project_tags.c.project_id == project_id,
-                    project_tags.c.tag_id == tag_id
-                )
-            )
-            await db.commit()
-            return True
-        except Exception:
-            await db.rollback()
-            return False 
+        return await self.project_tag_repository.remove_tag_from_project(db, project_id, tag_id) 

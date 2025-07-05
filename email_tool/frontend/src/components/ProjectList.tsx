@@ -1,20 +1,7 @@
 import React from 'react';
-import { Tag } from '../contexts/ProjectContext';
+import { Tag, Project as ProjectContextProject } from '../contexts/ProjectContext';
 
-export interface Project {
-  id: number;
-  name: string;
-  created_at: string;
-  templates_count: number;
-  languages_count: number;
-  marketing_group_id?: number;
-  marketing_group?: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  tags?: Tag[];
-}
+export type Project = ProjectContextProject;
 
 interface ProjectListProps {
   projects: Project[];
@@ -58,10 +45,14 @@ const ProjectList: React.FC<ProjectListProps> = ({ projects, onDelete, onOpen })
                     <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
                       <span>{project.templates_count} templates</span>
                       <span>{project.languages_count} languages</span>
-                      {project.marketing_group && (
-                        <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">
-                          {project.marketing_group.name}
-                        </span>
+                      {project.marketing_groups && project.marketing_groups.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {project.marketing_groups.map((group) => (
+                            <span key={group.id} className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">
+                              {group.type.code}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                     {project.tags && project.tags.length > 0 && (

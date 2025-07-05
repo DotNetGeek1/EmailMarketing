@@ -146,13 +146,17 @@ const ProjectOverview: React.FC = () => {
               )}
             </dd>
           </div>
-          {currentProject.marketing_group && (
+          {currentProject.marketing_groups && currentProject.marketing_groups.length > 0 && (
             <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Marketing Group</dt>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Marketing Groups</dt>
               <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                  {currentProject.marketing_group.code} - {currentProject.marketing_group.name}
-                </span>
+                <div className="flex flex-wrap gap-2">
+                  {currentProject.marketing_groups.map((group) => (
+                    <span key={group.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                      {group.type.code} - {group.type.label}
+                    </span>
+                  ))}
+                </div>
               </dd>
             </div>
           )}
