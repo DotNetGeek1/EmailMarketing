@@ -73,6 +73,17 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
     }
   };
 
+  // Helper to get public screenshot URL
+  const getScreenshotUrl = (screenshotPath?: string) => {
+    if (!screenshotPath) return '';
+    // If already a public URL, return as is
+    if (screenshotPath.startsWith('/static/screenshots/')) return screenshotPath;
+    // Otherwise, extract filename and return public URL
+    const parts = screenshotPath.split('/');
+    const filename = parts[parts.length - 1];
+    return `/static/screenshots/${filename}`;
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -143,10 +154,10 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
               <div className="text-sm font-medium mb-2">Screenshot:</div>
               <div 
                 className="inline-block cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden hover:border-blue-500 transition-colors"
-                onClick={() => setScreenshotModal({isOpen: true, url: latestResult.screenshot_path || ''})}
+                onClick={() => setScreenshotModal({isOpen: true, url: getScreenshotUrl(latestResult.screenshot_path)})}
               >
                 <img 
-                  src={latestResult.screenshot_path || ''} 
+                  src={getScreenshotUrl(latestResult.screenshot_path)} 
                   alt="Test failure screenshot"
                   className="w-32 h-24 object-cover"
                   onError={(e) => {
@@ -198,16 +209,16 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
                 {result.screenshot_path && (
                   <div 
                     className="cursor-pointer"
-                    onClick={() => setScreenshotModal({isOpen: true, url: result.screenshot_path || ''})}
+                    onClick={() => setScreenshotModal({isOpen: true, url: getScreenshotUrl(result.screenshot_path)})}
                   >
                     <img 
-                      src={result.screenshot_path || ''} 
+                      src={getScreenshotUrl(result.screenshot_path)} 
                       alt="Test failure screenshot"
-                      className="w-16 h-12 object-cover rounded border border-gray-300 dark:border-gray-600 hover:border-blue-500 transition-colors"
+                      className="w-16 h-12 object-cover border border-gray-300 dark:border-gray-600 rounded"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
-                        target.parentElement!.innerHTML = '<div class="w-16 h-12 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs text-gray-500 rounded">Failed</div>';
+                        target.parentElement!.innerHTML = '<div class="w-16 h-12 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs text-gray-500">Failed to load</div>';
                       }}
                     />
                   </div>
@@ -225,18 +236,16 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
         title="Test Failure Screenshot" 
         size="xl"
       >
-        <div className="flex justify-center">
-          <img 
-            src={screenshotModal.url} 
-            alt="Full size test failure screenshot"
-            className="max-w-full max-h-96 object-contain rounded-lg shadow-lg"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
-              target.parentElement!.innerHTML = '<div class="w-full h-96 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500">Failed to load screenshot</div>';
-            }}
-          />
-        </div>
+        <img
+          src={getScreenshotUrl(screenshotModal.url)}
+          alt="Full size test failure screenshot"
+          className="max-w-full max-h-[80vh] mx-auto"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.style.display = 'none';
+            target.parentElement!.innerHTML = '<div class="w-full h-64 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-lg text-gray-500">Failed to load screenshot</div>';
+          }}
+        />
       </Modal>
     </div>
   );

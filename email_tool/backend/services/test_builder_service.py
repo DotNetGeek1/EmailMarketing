@@ -405,6 +405,9 @@ class TestBuilderService:
         duration_ms = int((end_time - start_time).total_seconds() * 1000)
         
         # Create test result
+        public_screenshot_url = None
+        if screenshot_path:
+            public_screenshot_url = f"/static/screenshots/{os.path.basename(screenshot_path)}"
         test_result = TestResult(
             scenario_id=scenario_id,
             status=status,
@@ -423,7 +426,7 @@ class TestBuilderService:
             'status': status,
             'duration_ms': duration_ms,
             'error_message': error_message,
-            'screenshot_path': screenshot_path,
+            'screenshot_path': public_screenshot_url,
             'logs': logs
         }
 

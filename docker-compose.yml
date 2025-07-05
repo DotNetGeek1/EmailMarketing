@@ -11,6 +11,7 @@ services:
     volumes:
       - ./email_tool/backend/static:/app/email_tool/backend/static
       - ../db.sqlite3:/app/db.sqlite3
+      - screenshots:/app/email_tool/backend/static/screenshots
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
@@ -20,7 +21,23 @@ services:
       context: ./email_tool/frontend
       dockerfile: Dockerfile.frontend
     container_name: emailtool-frontend
+    volumes:
+      - build:/usr/share/nginx/html
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    container_name: emailtool-nginx
     ports:
       - "3000:80"
+    volumes:
+      - build:/usr/share/nginx/html:ro
+      - screenshots:/screenshots:ro
+      - ./email_tool/frontend/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - backend 
+      - frontend
+
+volumes:
+  screenshots:
+  build: 

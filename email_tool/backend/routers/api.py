@@ -281,13 +281,12 @@ async def delete_template(template_id: int, db: AsyncSession = Depends(get_db)):
 @router.get('/emails/{campaign_id}')
 async def get_generated_emails(campaign_id: int, db: AsyncSession = Depends(get_db)):
     emails = (await db.execute(select(GeneratedEmail).filter_by(campaign_id=campaign_id))).scalars().all()
-    # Compose thumbnail URL if file exists
+    # Compose thumbnail URL
     results = []
     for email in emails:
         guid = str(email.id)  # fallback to id for filename if needed
         screenshot_filename = f"{guid}.png"
-        screenshot_path = f"email_tool/backend/static/screenshots/{screenshot_filename}"
-        thumbnail_url = f"/static/screenshots/{screenshot_filename}" if os.path.exists(screenshot_path) else None
+        thumbnail_url = f"/static/screenshots/{screenshot_filename}"
         results.append({
             'id': email.id,
             'campaign_id': email.campaign_id,
