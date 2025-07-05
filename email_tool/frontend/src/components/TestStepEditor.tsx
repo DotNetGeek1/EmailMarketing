@@ -27,7 +27,9 @@ const ACTIONS = [
   { value: 'expectText', label: 'Expect Text' },
   { value: 'expectAttr', label: 'Expect Attribute' },
   { value: 'expectUrlContains', label: 'Expect URL Contains' },
+  { value: 'expectPageTitle', label: 'Expect Page Title' },
   { value: 'waitForSelector', label: 'Wait For Selector' },
+  { value: 'waitForPageLoad', label: 'Wait For Page Load' },
   { value: 'fill', label: 'Fill Input' },
 ];
 
@@ -214,7 +216,7 @@ const TestStepEditor: React.FC<TestStepEditorProps> = ({ step, onSave, onDelete,
             />
           )}
 
-          {(form.action === 'expectText' || form.action === 'expectAttr' || form.action === 'expectUrlContains' || form.action === 'fill') && (
+          {(form.action === 'expectText' || form.action === 'expectAttr' || form.action === 'expectUrlContains' || form.action === 'expectPageTitle' || form.action === 'fill') && (
             <FormField 
               label={form.action === 'fill' ? 'Input Value' : 'Expected Value'} 
               value={form.value} 

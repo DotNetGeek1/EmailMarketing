@@ -9,6 +9,7 @@ from .tag import Tag
 from .test_scenario import TestScenario
 from .test_step import TestStep
 from .test_result import TestResult
+from .campaign_tag import campaign_tags
 
 __all__ = [
     'Base',
@@ -22,4 +23,5 @@ __all__ = [
     'TestScenario',
     'TestStep',
     'TestResult',
+    'campaign_tags',
 ]

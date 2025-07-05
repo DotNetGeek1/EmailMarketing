@@ -7,6 +7,7 @@ import TestExecution from './TestExecution';
 import TestStepEditor from './TestStepEditor';
 import { apiUrl } from '../config';
 import { useToast } from '../contexts/ToastContext';
+import Papa, { ParseResult, ParseError } from 'papaparse';
 
 export interface TestScenarioDetailProps {
   scenarioId: number;
@@ -28,7 +29,9 @@ const ACTIONS = [
   { value: 'expectText', label: 'Expect Text' },
   { value: 'expectAttr', label: 'Expect Attribute' },
   { value: 'expectUrlContains', label: 'Expect URL Contains' },
+  { value: 'expectPageTitle', label: 'Expect Page Title' },
   { value: 'waitForSelector', label: 'Wait For Selector' },
+  { value: 'waitForPageLoad', label: 'Wait For Page Load' },
   { value: 'fill', label: 'Fill Input' },
 ];
 
@@ -49,6 +52,10 @@ const TestScenarioDetail: React.FC<TestScenarioDetailProps> = ({ scenarioId, onB
     description: '',
   });
   const [addSelectorType, setAddSelectorType] = useState<'data-testid' | 'custom'>('data-testid');
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvSummary, setCsvSummary] = useState<{success: number, errors: string[]}|null>(null);
+  const [csvPreview, setCsvPreview] = useState<Array<{original: string[], cleaned: {selector: string, action: string, value: string, attr: string}}>|null>(null);
 
   useEffect(() => {
     fetchScenario();
@@ -136,6 +143,220 @@ const TestScenarioDetail: React.FC<TestScenarioDetailProps> = ({ scenarioId, onB
     }
   };
 
+  // CSV preview handler
+  const handleCsvPreview = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    Papa.parse(file as any, {
+      header: false,
+      skipEmptyLines: true,
+      complete: (results: ParseResult<string[]>) => {
+        const preview: Array<{original: string[], cleaned: {selector: string, action: string, value: string, attr: string}}> = [];
+        
+        for (let i = 0; i < Math.min(results.data.length, 5); i++) { // Show first 5 rows
+          const row = results.data[i];
+          let selector = row[0]?.trim();
+          let action = row[1]?.trim() || 'expectText'; // Keep original case
+          let value = row[2]?.trim();
+          let attr = row[3]?.trim();
+          
+          // Clean the data
+          if (selector) {
+            selector = selector
+              .replace(/[^\w\s\-_\.#\[\]="']/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+          }
+          
+          if (action) {
+            action = action
+              .replace(/[^\w]/g, '')
+              .trim();
+            // Convert to PascalCase for backend compatibility
+            if (action === 'expecttext') action = 'expectText';
+            else if (action === 'expectattr') action = 'expectAttr';
+            else if (action === 'expecturlcontains') action = 'expectUrlContains';
+            else if (action === 'expectpagetitle') action = 'expectPageTitle';
+            else if (action === 'waitforselector') action = 'waitForSelector';
+            else if (action === 'waitforpageload') action = 'waitForPageLoad';
+            else if (action === 'click') action = 'click';
+            else if (action === 'fill') action = 'fill';
+          }
+          
+          if (value) {
+            // Special handling for URLs - preserve URL structure
+            if (action === 'expectAttr' && attr === 'href') {
+              // For href attributes, preserve URL structure - only remove truly problematic characters
+              value = value
+                .replace(/[\r\n\t]/g, '') // Remove newlines and tabs
+                .replace(/\s+/g, ' ') // Normalize whitespace
+                .trim();
+            } else {
+              // For other values, use standard cleaning
+              value = value
+                .replace(/[^\w\s\-_\.@#$%&*()+=!?<>{}[\]|\\:;"'`~]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            }
+          }
+          
+          if (attr) {
+            attr = attr
+              .replace(/[^\w\-]/g, '')
+              .trim();
+          }
+          
+          preview.push({
+            original: row,
+            cleaned: { selector: selector || '', action: action || 'expectText', value: value || '', attr: attr || '' }
+          });
+        }
+        
+        setCsvPreview(preview);
+      },
+    });
+  };
+
+  // CSV upload handler
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvUploading(true);
+    setCsvSummary(null);
+    setCsvPreview(null);
+    Papa.parse(file as any, {
+      header: false,
+      skipEmptyLines: true,
+      complete: async (results: ParseResult<string[]>) => {
+        let success = 0;
+        let errors: string[] = [];
+        if (results.errors && results.errors.length > 0) {
+          errors.push(...results.errors.map(e => e.message));
+        }
+        for (let i = 0; i < results.data.length; i++) {
+          const row = results.data[i];
+          let selector = row[0]?.trim();
+          let action = row[1]?.trim() || 'expectText'; // Keep original case
+          let value = row[2]?.trim();
+          let attr = row[3]?.trim();
+          
+          // Clean the data
+          if (selector) {
+            // Remove special characters and encoding issues
+            selector = selector
+              .replace(/[^\w\s\-_\.#\[\]="']/g, '') // Remove special chars except valid CSS selector chars
+              .replace(/\s+/g, ' ') // Normalize whitespace
+              .trim();
+          }
+          
+          if (action) {
+            action = action
+              .replace(/[^\w]/g, '') // Only allow word characters for action
+              .trim();
+            // Convert to PascalCase for backend compatibility
+            if (action === 'expecttext') action = 'expectText';
+            else if (action === 'expectattr') action = 'expectAttr';
+            else if (action === 'expecturlcontains') action = 'expectUrlContains';
+            else if (action === 'expectpagetitle') action = 'expectPageTitle';
+            else if (action === 'waitforselector') action = 'waitForSelector';
+            else if (action === 'waitforpageload') action = 'waitForPageLoad';
+            else if (action === 'click') action = 'click';
+            else if (action === 'fill') action = 'fill';
+          }
+          
+          if (value) {
+            // Special handling for URLs - preserve URL structure
+            if (action === 'expectAttr' && attr === 'href') {
+              // For href attributes, preserve URL structure - only remove truly problematic characters
+              value = value
+                .replace(/[\r\n\t]/g, '') // Remove newlines and tabs
+                .replace(/\s+/g, ' ') // Normalize whitespace
+                .trim();
+            } else {
+              // For other values, use standard cleaning
+              value = value
+                .replace(/[^\w\s\-_\.@#$%&*()+=!?<>{}[\]|\\:;"'`~]/g, '') // Remove problematic chars
+                .replace(/\s+/g, ' ') // Normalize whitespace
+                .trim();
+            }
+          }
+          
+          if (attr) {
+            attr = attr
+              .replace(/[^\w\-]/g, '') // Only allow word characters and hyphens for attributes
+              .trim();
+          }
+          
+          // Validate required fields based on action type
+          const actionsWithoutSelector = ['waitForPageLoad', 'expectPageTitle', 'expectUrlContains'];
+          const actionsWithoutValue = ['waitForPageLoad'];
+          
+          if (!actionsWithoutSelector.includes(action) && !selector) {
+            errors.push(`Row ${i + 1}: Selector required for action '${action}'`);
+            continue;
+          }
+          
+          if (!actionsWithoutValue.includes(action) && !value) {
+            errors.push(`Row ${i + 1}: Value required for action '${action}'`);
+            continue;
+          }
+          
+          // Additional validation for actions that need selectors
+          if (!actionsWithoutSelector.includes(action) && selector && selector.length < 1) {
+            errors.push(`Row ${i + 1}: Selector too short after cleaning`);
+            continue;
+          }
+          
+          // Additional validation for actions that need values
+          if (!actionsWithoutValue.includes(action) && value && value.length < 1) {
+            errors.push(`Row ${i + 1}: Value too short after cleaning`);
+            continue;
+          }
+          
+          // Validate action
+          const validActions = ['click', 'expectText', 'expectAttr', 'expectUrlContains', 'expectPageTitle', 'waitForSelector', 'waitForPageLoad', 'fill'];
+          if (!validActions.includes(action)) {
+            errors.push(`Row ${i + 1}: Invalid action '${action}'. Must be one of: ${validActions.join(', ')}`);
+            continue;
+          }
+          
+          // Validate attr is provided for expectAttr
+          if (action === 'expectAttr' && !attr) {
+            errors.push(`Row ${i + 1}: Attribute name required for expectAttr action. Add a 4th column with the attribute name (e.g., 'href')`);
+            continue;
+          }
+          
+          try {
+            const payload = {
+              step_order: (scenario.steps?.length || 0) + 1 + success,
+              action,
+              selector,
+              value,
+              attr: attr || undefined,
+              description: undefined,
+            };
+            const res = await fetch(apiUrl(`/test-builder/scenario/${scenarioId}/step`), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              errors.push(`Row ${i + 1}: Failed to add step`);
+            } else {
+              success++;
+            }
+          } catch (err) {
+            errors.push(`Row ${i + 1}: ${err}`);
+          }
+        }
+        setCsvSummary({ success, errors });
+        setCsvUploading(false);
+        fetchScenario();
+      },
+    });
+  };
+
   if (loading || !scenario) {
     return <LoadingSpinner />;
   }
@@ -159,7 +380,10 @@ const TestScenarioDetail: React.FC<TestScenarioDetailProps> = ({ scenarioId, onB
       </div>
       <div className="flex justify-between items-center mb-2">
         <div className="font-semibold text-gray-900 dark:text-white">Test Steps</div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm" onClick={() => setShowAddStep(true)}>Add Step</button>
+        <div className="flex gap-2">
+          <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm" onClick={() => setShowAddStep(true)}>Add Step</button>
+          <button className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm" onClick={() => setShowCsvModal(true)}>Upload CSV</button>
+        </div>
       </div>
       <div className="space-y-2 mb-8">
         {scenario.steps.length === 0 && <div className="text-gray-400">No steps yet.</div>}
@@ -317,7 +541,7 @@ const TestScenarioDetail: React.FC<TestScenarioDetailProps> = ({ scenarioId, onB
             />
           )}
 
-          {(form.action === 'expectText' || form.action === 'expectAttr' || form.action === 'expectUrlContains' || form.action === 'fill') && (
+          {(form.action === 'expectText' || form.action === 'expectAttr' || form.action === 'expectUrlContains' || form.action === 'expectPageTitle' || form.action === 'fill') && (
             <FormField 
               label={form.action === 'fill' ? 'Input Value' : 'Expected Value'} 
               value={form.value} 
@@ -351,6 +575,92 @@ const TestScenarioDetail: React.FC<TestScenarioDetailProps> = ({ scenarioId, onB
             </button>
           </div>
         </form>
+      </Modal>
+      <Modal isOpen={showCsvModal} onClose={() => { setShowCsvModal(false); setCsvSummary(null); setCsvPreview(null); }} title="Upload CSV for Test Steps" size="lg">
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+              Upload a CSV file with columns: <b>selector</b>, <b>action</b>, <b>value</b>, <b>attribute</b> (optional).<br/>
+              <span className="text-xs text-gray-500">
+                <strong>Valid actions:</strong> click, expectText, expectAttr, expectUrlContains, expectPageTitle, waitForSelector, waitForPageLoad, fill<br/>
+                Example: Hero-Btn, expectText, Start Now<br/>
+                Example: Hero-Btn, expectAttr, https://www.seagate.com/products/back-to-school, href<br/>
+                Example: , expectPageTitle, My Page Title<br/>
+                Example: , waitForPageLoad,
+              </span>
+            </p>
+            <input type="file" accept=".csv" onChange={handleCsvPreview} disabled={csvUploading} className="block w-full" />
+          </div>
+          
+          {csvPreview && (
+            <div>
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2">Preview (first 5 rows):</h4>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded p-3 max-h-60 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-300 dark:border-gray-600">
+                      <th className="text-left py-1">Row</th>
+                      <th className="text-left py-1">Action</th>
+                      <th className="text-left py-1">Selector</th>
+                      <th className="text-left py-1">Value</th>
+                      <th className="text-left py-1">Attribute</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvPreview.map((row, i) => (
+                      <tr key={i} className="border-b border-gray-200 dark:border-gray-600">
+                        <td className="py-1 text-gray-500">{i + 1}</td>
+                        <td className="py-1 font-mono bg-blue-50 dark:bg-blue-900/20 p-1 rounded">{row.cleaned.action}</td>
+                        <td className="py-1 font-mono bg-green-50 dark:bg-green-900/20 p-1 rounded">{row.cleaned.selector}</td>
+                        <td className="py-1 font-mono bg-green-50 dark:bg-green-900/20 p-1 rounded">{row.cleaned.value}</td>
+                        <td className="py-1 font-mono bg-green-50 dark:bg-green-900/20 p-1 rounded">{row.cleaned.attr || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                CSV Format: selector, action, value, attribute (optional)<br/>
+                Valid actions: click, expectText, expectAttr, expectUrlContains, expectPageTitle, waitForSelector, waitForPageLoad, fill
+              </div>
+            </div>
+          )}
+          
+          {csvUploading && <div className="text-blue-600">Uploading and processing...</div>}
+          {csvSummary && (
+            <div>
+              <div className="text-green-700 dark:text-green-300">{csvSummary.success} steps created.</div>
+              {csvSummary.errors.length > 0 && (
+                <div className="text-red-600 dark:text-red-400 mt-2">
+                  <div>Errors:</div>
+                  <ul className="list-disc ml-5">
+                    {csvSummary.errors.map((err, i) => <li key={i}>{err}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <button 
+              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors" 
+              onClick={() => {
+                const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                if (fileInput && fileInput.files?.[0]) {
+                  handleCsvUpload({ target: { files: fileInput.files } } as any);
+                }
+              }}
+              disabled={!csvPreview || csvUploading}
+            >
+              Import Steps
+            </button>
+            <button 
+              className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors" 
+              onClick={() => { setShowCsvModal(false); setCsvSummary(null); setCsvPreview(null); }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

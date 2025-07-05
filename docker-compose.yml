@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: emailtool-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./email_tool/backend/static:/app/email_tool/backend/static
+      - ../db.sqlite3:/app/db.sqlite3
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+
+  frontend:
+    build:
+      context: ./email_tool/frontend
+      dockerfile: Dockerfile.frontend
+    container_name: emailtool-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner';
+import Modal from './Modal';
 import { apiUrl } from '../config';
 import { useToast } from '../contexts/ToastContext';
 
@@ -24,6 +25,8 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
   const [running, setRunning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expandedLogs, setExpandedLogs] = useState<number | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
+  const [screenshotModal, setScreenshotModal] = useState<{isOpen: boolean, url: string}>({isOpen: false, url: ''});
 
   useEffect(() => {
     fetchResults();
@@ -80,25 +83,36 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Test Execution</h3>
-        <button
-          onClick={runTest}
-          disabled={running}
-          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          {running ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Running...
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Run Test
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center text-sm">
+            <input
+              type="checkbox"
+              checked={debugMode}
+              onChange={(e) => setDebugMode(e.target.checked)}
+              className="mr-2 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-gray-700 dark:text-gray-300">Debug Mode</span>
+          </label>
+          <button
+            onClick={runTest}
+            disabled={running}
+            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            {running ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Running...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Run Test
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {latestResult && (
@@ -126,15 +140,23 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
 
           {latestResult.screenshot_path && (
             <div className="mb-3">
-              <div className="text-sm font-medium mb-1">Screenshot:</div>
-              <a
-                href={latestResult.screenshot_path.replace('email_tool/backend', '')}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline text-sm"
+              <div className="text-sm font-medium mb-2">Screenshot:</div>
+              <div 
+                className="inline-block cursor-pointer border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden hover:border-blue-500 transition-colors"
+                onClick={() => setScreenshotModal({isOpen: true, url: latestResult.screenshot_path || ''})}
               >
-                View Screenshot
-              </a>
+                <img 
+                  src={latestResult.screenshot_path || ''} 
+                  alt="Test failure screenshot"
+                  className="w-32 h-24 object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    target.parentElement!.innerHTML = '<div class="w-32 h-24 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs text-gray-500">Failed to load</div>';
+                  }}
+                />
+              </div>
+              <div className="text-xs text-gray-500 mt-1">Click to view full size</div>
             </div>
           )}
 
@@ -146,7 +168,7 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
               >
                 {expandedLogs === latestResult.id ? 'Hide' : 'Show'} Logs
               </button>
-              {expandedLogs === latestResult.id && (
+              {(expandedLogs === latestResult.id || debugMode) && (
                 <pre className="text-xs bg-gray-100 dark:bg-gray-700 p-3 rounded overflow-x-auto whitespace-pre-wrap">
                   {latestResult.logs}
                 </pre>
@@ -174,20 +196,48 @@ const TestExecution: React.FC<TestExecutionProps> = ({ scenarioId, onResultUpdat
                   </span>
                 </div>
                 {result.screenshot_path && (
-                  <a
-                    href={result.screenshot_path.replace('email_tool/backend', '')}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-xs"
+                  <div 
+                    className="cursor-pointer"
+                    onClick={() => setScreenshotModal({isOpen: true, url: result.screenshot_path || ''})}
                   >
-                    Screenshot
-                  </a>
+                    <img 
+                      src={result.screenshot_path || ''} 
+                      alt="Test failure screenshot"
+                      className="w-16 h-12 object-cover rounded border border-gray-300 dark:border-gray-600 hover:border-blue-500 transition-colors"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        target.parentElement!.innerHTML = '<div class="w-16 h-12 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs text-gray-500 rounded">Failed</div>';
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             ))}
           </div>
         </div>
       )}
+      
+      {/* Screenshot Modal */}
+      <Modal 
+        isOpen={screenshotModal.isOpen} 
+        onClose={() => setScreenshotModal({isOpen: false, url: ''})} 
+        title="Test Failure Screenshot" 
+        size="xl"
+      >
+        <div className="flex justify-center">
+          <img 
+            src={screenshotModal.url} 
+            alt="Full size test failure screenshot"
+            className="max-w-full max-h-96 object-contain rounded-lg shadow-lg"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              target.parentElement!.innerHTML = '<div class="w-full h-96 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500">Failed to load screenshot</div>';
+            }}
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

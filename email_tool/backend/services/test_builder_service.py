@@ -253,22 +253,16 @@ class TestBuilderService:
             return await self._run_test_scenario_fallback(db, scenario_id, steps, start_time)
 
     async def _run_test_scenario_playwright(self, db: AsyncSession, scenario_id: int, steps, start_time: datetime, scenario) -> Dict:
-        """Run test scenario using Playwright with Windows-compatible configuration."""
+        """Run test scenario using Playwright with Docker-compatible configuration."""
         import tempfile
         import os
-        import threading
-        import time
+        import uuid
         
         logs = []
         screenshot_path = None
         
         try:
-            # Use subprocess to run Playwright completely outside FastAPI context
-            import subprocess
-            import json
-            import sys
-            
-            logs.append("Starting Playwright test execution via subprocess...")
+            logs.append("Starting Playwright test execution...")
             
             # Create temporary HTML file
             logs.append("Creating temporary HTML file...")
@@ -276,167 +270,161 @@ class TestBuilderService:
                 f.write(str(scenario.html_content))
                 temp_html_path = f.name
             logs.append(f"Temporary HTML file created: {temp_html_path}")
-            logs.append(f"HTML content length: {len(str(scenario.html_content))} characters")
-            
-            # Create a temporary Python script to run the test
-            test_script_content = f'''
-import sys
-import json
-from playwright.sync_api import sync_playwright
 
-def run_test():
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-            
-            file_url = "file:///{temp_html_path.replace(os.sep, '/')}"
-            page.goto(file_url)
-            
-            # Execute test steps
-            steps = {[{"step_order": getattr(step, 'step_order'), "action": getattr(step, 'action'), "selector": getattr(step, 'selector'), "value": getattr(step, 'value'), "attr": getattr(step, 'attr')} for step in steps]}
-            
-            results = []
-            for step in steps:
-                step_order = step["step_order"]
-                action = step["action"]
-                selector = step["selector"]
-                value = step["value"]
-                attr = step["attr"]
-                
-                print(f"Executing step {{step_order}}: {{action}} on {{selector}}")
-                
-                if action == 'click':
-                    page.click(f'[data-testid="{{selector}}"]')
-                elif action == 'expectText':
-                    text_content = page.text_content(f'[data-testid="{{selector}}"]')
-                    # Strip whitespace for comparison
-                    text_content_clean = text_content.strip()
-                    print(f"Found text: '{{text_content}}'")
-                    print(f"Cleaned text: '{{text_content_clean}}'")
-                    print(f"Expected text: '{{value}}'")
-                    if value and value != text_content_clean:
-                        raise Exception(f"Expected text '{{value}}' does not match '{{text_content_clean}}' in element '{{selector}}'")
-                elif action == 'expectAttr':
-                    attr_value = page.get_attribute(f'[data-testid="{{selector}}"]', attr)
-                    print(f"Found attribute {{attr}}: '{{attr_value}}'")
-                    print(f"Expected attribute {{attr}}: '{{value}}'")
-                    if attr_value != value:
-                        raise Exception(f"Expected attribute '{{attr}}' to be '{{value}}', got '{{attr_value}}'")
-                elif action == 'expectUrlContains':
-                    current_url = page.url
-                    print(f"Current URL: '{{current_url}}'")
-                    print(f"Expected URL to contain: '{{value}}'")
-                    if value and value not in current_url:
-                        raise Exception(f"Expected URL to contain '{{value}}', got '{{current_url}}'")
-                elif action == 'waitForSelector':
-                    page.wait_for_selector(f'[data-testid="{{selector}}"]')
-                elif action == 'fill':
-                    page.fill(f'[data-testid="{{selector}}"]', value)
-                else:
-                    raise Exception(f"Unknown action: {{action}}")
-                
-                print(f"Step {{step_order}} completed successfully")
-                results.append({{"step": step_order, "status": "passed"}})
-            
-            browser.close()
-            return {{"status": "passed", "results": results}}
-            
-    except Exception as e:
-        print(f"Test failed with error: {{str(e)}}")
-        return {{"status": "failed", "error": str(e)}}
+            # Compute absolute screenshots directory
+            screenshots_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../static/screenshots'))
+            os.makedirs(screenshots_dir, exist_ok=True)
 
-if __name__ == "__main__":
-    result = run_test()
-    print(json.dumps(result))
-'''
+            # Run test using Playwright directly
+            from playwright.async_api import async_playwright
             
-            # Write the test script to a temporary file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
-                f.write(test_script_content)
-                test_script_path = f.name
-            
-            logs.append(f"Test script created: {test_script_path}")
-            
-            # Run the test script
-            logs.append("Executing test script...")
-            result = subprocess.run([sys.executable, test_script_path], 
-                                  capture_output=True, text=True, timeout=30)
-            
-            logs.append(f"Subprocess completed with return code: {result.returncode}")
-            # Extract debug output and JSON result
-            stdout_lines = result.stdout.strip().split('\n')
-            debug_output = []
-            json_result = None
-            
-            for line in stdout_lines:
-                if line.startswith('{') and line.endswith('}'):
-                    json_result = line
-                else:
-                    debug_output.append(line)
-            
-            logs.append("Debug output from subprocess:")
-            for line in debug_output:
-                logs.append(f"  {line}")
-            
-            logs.append(f"Subprocess stderr: {result.stderr}")
-            
-            if result.returncode == 0 and json_result:
+            async with async_playwright() as p:
+                # Launch browser with Docker-compatible settings
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-accelerated-2d-canvas',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--disable-gpu'
+                    ]
+                )
+                
+                page = await browser.new_page()
+                
+                # Load the HTML content
+                file_url = f"file:///{temp_html_path.replace(os.sep, '/')}"
+                await page.goto(file_url)
+                
+                # Execute test steps
+                results = []
+                for step in steps:
+                    step_order = getattr(step, 'step_order')
+                    action = getattr(step, 'action')
+                    selector = getattr(step, 'selector')
+                    value = getattr(step, 'value')
+                    attr = getattr(step, 'attr')
+                    
+                    logs.append(f"Executing step {step_order}: {action} on {selector}")
+                    
+                    try:
+                        if action == 'click':
+                            await page.click(f'[data-testid="{selector}"]')
+                        elif action == 'expectText':
+                            text_content = await page.text_content(f'[data-testid="{selector}"]')
+                            # Normalize and clean text for comparison
+                            text_content_clean = text_content.strip() if text_content else ""
+                            value_clean = value.strip() if value else ""
+                            
+                            # Additional normalization
+                            text_content_normalized = text_content_clean.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+                            value_normalized = value_clean.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+                            
+                            # Remove multiple spaces
+                            text_content_normalized = ' '.join(text_content_normalized.split())
+                            value_normalized = ' '.join(value_normalized.split())
+                            
+                            logs.append(f"Found text: '{text_content}'")
+                            logs.append(f"Expected text: '{value}'")
+                            
+                            if value_normalized and value_normalized != text_content_normalized:
+                                raise Exception(f"Expected text '{value_normalized}' does not match '{text_content_normalized}' in element '{selector}'")
+                        elif action == 'expectAttr':
+                            attr_value = await page.get_attribute(f'[data-testid="{selector}"]', attr)
+                            logs.append(f"Found attribute {attr}: '{attr_value}'")
+                            logs.append(f"Expected attribute {attr}: '{value}'")
+                            if attr_value != value:
+                                raise Exception(f"Expected attribute '{attr}' to be '{value}', got '{attr_value}'")
+                        elif action == 'expectUrlContains':
+                            current_url = page.url
+                            logs.append(f"Current URL: '{current_url}'")
+                            logs.append(f"Expected URL to contain: '{value}'")
+                            if value and value not in current_url:
+                                raise Exception(f"Expected URL to contain '{value}', got '{current_url}'")
+                        elif action == 'expectPageTitle':
+                            page_title = await page.title()
+                            logs.append(f"Current page title: '{page_title}'")
+                            logs.append(f"Expected page title: '{value}'")
+                            if value and value != page_title:
+                                raise Exception(f"Expected page title '{value}', got '{page_title}'")
+                        elif action == 'waitForSelector':
+                            await page.wait_for_selector(f'[data-testid="{selector}"]')
+                        elif action == 'waitForPageLoad':
+                            await page.wait_for_load_state('domcontentloaded')
+                            logs.append(f"Page load completed")
+                        elif action == 'fill':
+                            await page.fill(f'[data-testid="{selector}"]', value)
+                        else:
+                            raise Exception(f"Unknown action: {action}")
+                        
+                        logs.append(f"Step {step_order} completed successfully")
+                        results.append({"step": step_order, "status": "passed"})
+                        
+                    except Exception as step_error:
+                        # Capture screenshot on step failure
+                        try:
+                            screenshot_filename = f"screenshot_{uuid.uuid4()}.png"
+                            screenshot_path = os.path.join(screenshots_dir, screenshot_filename)
+                            await page.screenshot(path=screenshot_path, full_page=True)
+                            logs.append(f"Screenshot captured at: {screenshot_path}")
+                        except Exception as screenshot_error:
+                            logs.append(f"Failed to capture screenshot: {screenshot_error}")
+                            screenshot_path = None
+                        
+                        # Re-raise the step error
+                        raise step_error
+                
+                await browser.close()
+                
+                # Clean up temporary file
                 try:
-                    test_result = json.loads(json_result)
-                    if test_result["status"] == "passed":
-                        status = 'passed'
-                        error_message = None
-                        logs.append("Test completed successfully via subprocess")
-                    else:
-                        status = 'failed'
-                        error_message = test_result.get("error", "Unknown error")
-                        logs.append(f"Test failed via subprocess: {error_message}")
-                except json.JSONDecodeError:
-                    status = 'failed'
-                    error_message = "Failed to parse test results"
-                    logs.append("Failed to parse test results from subprocess")
-            else:
-                status = 'failed'
-                error_message = f"Subprocess failed with return code {result.returncode}"
-                logs.append(f"Subprocess failed: {result.stderr}")
+                    os.unlink(temp_html_path)
+                except:
+                    pass
+                
+                status = 'passed'
+                error_message = None
+                logs.append("Test completed successfully")
+                
+        except Exception as e:
+            status = 'failed'
+            error_message = str(e)
+            logs.append(f"Test failed: {error_message}")
             
-            # Clean up temporary files
+            # Clean up temporary file
             try:
-                os.unlink(test_script_path)
                 os.unlink(temp_html_path)
             except:
                 pass
-                
-        except Exception as e:
-            logs.append(f"Test execution failed: {str(e)}")
-            status = 'failed'
-            error_message = str(e)
         
+        # Calculate duration
         end_time = datetime.now()
         duration_ms = int((end_time - start_time).total_seconds() * 1000)
         
-        # Save test result
-        result = TestResult(
+        # Create test result
+        test_result = TestResult(
             scenario_id=scenario_id,
             status=status,
+            execution_time=start_time,
             duration_ms=duration_ms,
             error_message=error_message,
             screenshot_path=screenshot_path,
             logs='\n'.join(logs)
         )
-        db.add(result)
+        
+        db.add(test_result)
         await db.commit()
-        await db.refresh(result)
+        await db.refresh(test_result)
         
         return {
-            'id': result.id,
-            'status': result.status,
-            'duration_ms': result.duration_ms,
-            'error_message': result.error_message,
-            'screenshot_path': result.screenshot_path,
-            'logs': result.logs,
-            'execution_time': result.execution_time.isoformat()
+            'status': status,
+            'duration_ms': duration_ms,
+            'error_message': error_message,
+            'screenshot_path': screenshot_path,
+            'logs': logs
         }
 
     async def _run_test_scenario_fallback(self, db: AsyncSession, scenario_id: int, steps, start_time: datetime) -> Dict:
@@ -458,7 +446,7 @@ if __name__ == "__main__":
                 logs.append(step_log)
                 
                 # Basic validation
-                if action not in ['click', 'expectText', 'expectAttr', 'expectUrlContains', 'waitForSelector', 'fill']:
+                if action not in ['click', 'expectText', 'expectAttr', 'expectUrlContains', 'expectPageTitle', 'waitForSelector', 'waitForPageLoad', 'fill']:
                     raise Exception(f"Unknown action: {action}")
                 
                 logs.append(f"Step {step_order} validation passed")
