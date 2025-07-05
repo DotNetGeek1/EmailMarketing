@@ -60,7 +60,12 @@ Authentication: Simple token or internal SSO (TBD)
    npm install
    ```
 
-2. **Start the development server:**
+2. **Configure the API URL:** Create a `.env` file in `email_tool/frontend` and set:
+   ```env
+   REACT_APP_API_URL=http://localhost:8000
+   ```
+
+3. **Start the development server:**
    ```bash
    npm start
    ```
