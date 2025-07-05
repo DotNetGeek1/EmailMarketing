@@ -30,7 +30,7 @@ class TestService:
                 PlaywrightResult(
                     generated_email_id=email.id,
                     passed=test_result['passed'],
-                    issues=str(test_result['issues']),
+                    issues=test_result['issues'],
                 )
             )
         await db.commit()
