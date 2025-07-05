@@ -7,9 +7,8 @@ from .routers import api
 # Import all models to ensure they are registered with SQLAlchemy
 from .models import (
     Campaign, Template, LocalizedCopy, GeneratedEmail, 
-    Placeholder, PlaywrightResult, Tag
+    Placeholder, PlaywrightResult, Tag, TestScenario, TestStep, TestResult, campaign_tags
 )
-from .models.campaign_tag import campaign_tags
 
 app = FastAPI()
 

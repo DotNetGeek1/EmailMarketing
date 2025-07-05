@@ -1,0 +1,6 @@
+Hero-Heading,expectText,Shop Our Back-to-School Essentials
+Hero-Btn,expectText,Start Now
+Hero-Btn,expectAttr,https://www.seagate.com/products/back-to-school/?utm_medium=email&utm_source=promotion&utm_campaign=2024-back-to-school,href
+Hero-Btn,click,404 Not Found Page | Seagate US
+,waitForPageLoad,
+,expectPageTitle,404 Not Found Page | Seagate US
