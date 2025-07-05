@@ -35,8 +35,8 @@ class TemplateService:
         template = Template(project_id=project_id, marketing_group_id=marketing_group_id, filename=filename, content=content)
         template = await self.template_repository.create(db, template)
         
-        # Extract placeholder keys
-        keys = set(re.findall(r"{{\s*(\w+)\s*}}", content))
+        # Extract placeholder keys (allow hyphens)
+        keys = set(re.findall(r"{{\s*([\w-]+)\s*}}", content))
         
         # Create placeholders and auto-create tags
         created_tags = []
