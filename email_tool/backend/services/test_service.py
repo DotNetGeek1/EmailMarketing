@@ -3,19 +3,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..models import GeneratedEmail, PlaywrightResult
 from ...playwright.test_runner import run as run_test
+from typing import Optional, List, Dict, Any
 
 
 class TestService:
     """Execute Playwright tests against generated emails."""
 
-    async def run_tests(self, db: AsyncSession, campaign_id: int) -> int:
+    async def run_tests(self, db: AsyncSession, campaign_id: int, test_config: Optional[Dict[str, Any]] = None) -> int:
         result = await db.execute(
             select(GeneratedEmail).filter_by(campaign_id=campaign_id)
         )
         emails = result.scalars().all()
+        
+        # Extract test steps from config if provided
+        test_steps = None
+        if test_config and 'steps' in test_config:
+            test_steps = test_config['steps']
+        
         for email in emails:
-            test_result = await run_test(email.html_content)
-            if re.search(r"{{\s*\w+\s*}}", email.html_content):
+            test_result = await run_test(str(email.html_content), test_steps)
+            if re.search(r"{{\s*\w+\s*}}", str(email.html_content)):
                 test_result['passed'] = False
                 test_result['issues'].append('Unreplaced placeholders')
             db.add(

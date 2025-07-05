@@ -8,7 +8,7 @@ from ..services.email_service import EmailService
 from ..services.test_service import TestService
 from ..services.tag_service import TagService
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import os
 from sqlalchemy import select
 from ..models.generated_email import GeneratedEmail
@@ -36,6 +36,14 @@ class TagUpdate(BaseModel):
 
 class StatusUpdate(BaseModel):
     status: str
+
+class TestStep(BaseModel):
+    type: str
+    selector: str
+    text: Optional[str] = None
+
+class TestConfig(BaseModel):
+    steps: List[TestStep]
 
 @router.post('/customer')
 async def create_customer(name: str = Form(...), db: AsyncSession = Depends(get_db)):
@@ -192,8 +200,12 @@ async def generate_emails(campaign_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post('/test/{campaign_id}')
-async def run_tests(campaign_id: int, db: AsyncSession = Depends(get_db)):
-    count = await test_service.run_tests(db, campaign_id)
+async def run_tests(
+    campaign_id: int, 
+    test_config: Optional[TestConfig] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    count = await test_service.run_tests(db, campaign_id, test_config)
     return {'tested': count}
 
 
