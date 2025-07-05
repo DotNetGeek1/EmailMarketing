@@ -18,6 +18,7 @@ import Testing from './pages/Testing';
 import TagManagement from './pages/TagManagement';
 import TestBuilder from './pages/TestBuilder';
 import MarketingGroupTypes from './pages/MarketingGroupTypes';
+import MarketingGroupDetail from './pages/MarketingGroupDetail';
 
 const MainApp: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(() => {
@@ -76,6 +77,8 @@ const MainApp: React.FC = () => {
         return <TestBuilder />;
       case 'marketing-group-types':
         return <MarketingGroupTypes />;
+      case 'marketing-group-detail':
+        return <MarketingGroupDetail onNavigate={handleNavigate} params={pageParams} />;
       default:
         return <Dashboard />;
     }

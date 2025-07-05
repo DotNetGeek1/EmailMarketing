@@ -106,12 +106,16 @@ const ProjectEmails: React.FC = () => {
     return languageNames[code] || code;
   };
 
+  const getFilename = (email: GeneratedEmail) => {
+    return `${currentProject.name}-${email.locale}-email.html`;
+  };
+
   const downloadEmail = (email: GeneratedEmail) => {
     const blob = new Blob([email.html_content], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${currentProject.name}_${email.locale}.html`;
+    a.download = getFilename(email);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -246,65 +250,51 @@ const ProjectEmails: React.FC = () => {
             </p>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {generatedEmails.map((email) => (
-              <li key={email.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center flex-1">
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {getLanguageName(email.locale)} Email
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          Generated {new Date(email.generated_at).toLocaleString()}
-                        </div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          {email.html_content.length} characters
-                        </div>
-                        {/* Thumbnail Preview */}
-                        <div className="mt-2">
-                          {email.thumbnail_url ? (
-                            <img
-                              src={apiUrl(email.thumbnail_url)}
-                              alt="Email thumbnail"
-                              className="rounded border border-gray-200 dark:border-gray-700 max-w-xs max-h-40 object-cover bg-white"
-                              style={{ background: '#fff' }}
-                            />
-                          ) : (
-                            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-300 max-w-md">
-                              {generateThumbnail(email.html_content)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => openPreview(email)}
-                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-                      >
-                        Preview
-                      </button>
-                      <button
-                        onClick={() => downloadEmail(email)}
-                        className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
-                      >
-                        Download
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Filename
+                </th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Thumbnail
+                </th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800">
+              {generatedEmails.map(email => (
+                <tr key={email.id} className="border-b border-gray-200 dark:border-gray-700">
+                  <td className="px-4 py-2 text-sm text-gray-900 dark:text-white font-mono">
+                    {getFilename(email)}
+                  </td>
+                  <td className="px-4 py-2">
+                    {email.thumbnail_url ? (
+                      <img src={email.thumbnail_url} alt="thumbnail" className="w-32 h-20 object-cover rounded shadow" />
+                    ) : (
+                      <span className="text-xs text-gray-400">No thumbnail</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    <button
+                      onClick={() => openPreview(email)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-xs mr-2 hover:bg-blue-700"
+                    >
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => downloadEmail(email)}
+                      className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                    >
+                      Download
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 

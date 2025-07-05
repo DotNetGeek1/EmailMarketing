@@ -8,12 +8,14 @@ import Modal from '../components/Modal';
 import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { apiUrl } from '../config';
+import ProjectEmails from '../components/project/ProjectEmails';
 
 interface MarketingGroupsProps {
   onNavigate: (page: Page, params?: Record<string, any>) => void;
+  params?: { tab?: 'templates' | 'emails' | 'test' };
 }
 
-const MarketingGroups: React.FC<MarketingGroupsProps> = ({ onNavigate }) => {
+const MarketingGroups: React.FC<MarketingGroupsProps> = ({ onNavigate, params }) => {
   const { currentProject } = useProject();
   const { 
     marketingGroups, 
@@ -85,11 +87,11 @@ const MarketingGroups: React.FC<MarketingGroupsProps> = ({ onNavigate }) => {
     }
   };
 
-  const handleNavigateToTemplates = (groupId: number, groupName: string) => {
-    onNavigate('templates', { 
-      projectId: currentProject?.id, 
-      groupId, 
-      groupName 
+  const handleNavigateToGroup = (groupId: number, groupName: string) => {
+    onNavigate('marketing-group-detail', {
+      projectId: currentProject?.id,
+      groupId,
+      groupName,
     });
   };
 
@@ -115,25 +117,6 @@ const MarketingGroups: React.FC<MarketingGroupsProps> = ({ onNavigate }) => {
     <div className="space-y-6">
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} onNavigate={onNavigate} />
-
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-text">Marketing Groups</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Manage marketing groups for {currentProject.name}. Each group can contain templates.
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="bg-brand-accent hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow transition flex items-center"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Add Marketing Group
-        </button>
-      </div>
 
       {/* Marketing Groups List */}
       {marketingGroups.length === 0 ? (
@@ -176,13 +159,13 @@ const MarketingGroups: React.FC<MarketingGroupsProps> = ({ onNavigate }) => {
                 Created: {new Date(group.created_at).toLocaleDateString()}
               </div>
               <button
-                onClick={() => handleNavigateToTemplates(group.id, group.type.label)}
+                onClick={() => handleNavigateToGroup(group.id, group.type.label)}
                 className="w-full bg-brand-accent hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow transition flex items-center justify-center"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                View Templates
+                View Group
               </button>
             </div>
           ))}

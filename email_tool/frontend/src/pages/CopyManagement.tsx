@@ -266,9 +266,7 @@ const CopyManagement: React.FC<CopyManagementProps> = ({ onNavigate, params }) =
       const response = await fetch(apiUrl(`/generate/${projectId}`), { method: 'POST' });
       if (response.ok) {
         showSuccess('Emails Generated', 'Emails have been generated successfully.');
-        // Optionally, navigate to the marketing group or refresh emails
-        // onNavigate('marketing-groups', { projectId });
-        loadData();
+        onNavigate('marketing-groups', { projectId, tab: 'emails' });
       } else {
         showError('Generation Failed', 'Failed to generate emails.');
       }
