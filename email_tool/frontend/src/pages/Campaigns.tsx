@@ -76,7 +76,7 @@ const Campaigns: React.FC = () => {
       const response = await fetch(apiUrl('/campaign'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `name=${encodeURIComponent(newCampaignName)}&customer_id=${selectedCustomer.id}`,
+        body: `name=${encodeURIComponent(newCampaignName)}&customer_id=${selectedCustomer}`,
       });
       if (response.ok) {
         const newCampaign = await response.json();
@@ -101,7 +101,7 @@ const Campaigns: React.FC = () => {
     if (!selectedCustomer) return;
     try {
       setLoading(true);
-      const response = await fetch(apiUrl(`/campaigns?customer_id=${selectedCustomer.id}`));
+      const response = await fetch(apiUrl(`/campaigns?customer_id=${selectedCustomer}`));
       if (response.ok) {
         const data = await response.json();
         setCampaigns(data);

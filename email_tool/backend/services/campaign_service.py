@@ -39,7 +39,7 @@ class CampaignService:
         query = select(
             Campaign,
             func.count(Template.id).label('templates_count'),
-            func.count(func.distinct(LocalizedCopy.language)).label('languages_count')
+            func.count(func.distinct(LocalizedCopy.locale)).label('languages_count')
         )
         query = query.outerjoin(Template, Campaign.id == Template.campaign_id)
         query = query.outerjoin(LocalizedCopy, Campaign.id == LocalizedCopy.campaign_id)

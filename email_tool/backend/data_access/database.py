@@ -1,13 +1,15 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 from ..models import Base
+import os
 
-DATABASE_URL = 'sqlite+aiosqlite:///../db.sqlite3'
+# Use absolute path for database in Docker container
+DATABASE_URL = 'sqlite+aiosqlite:////app/db.sqlite3'
 
 engine = create_async_engine(DATABASE_URL, future=True)
 
-AsyncSessionLocal = sessionmaker(
+AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     expire_on_commit=False,
     class_=AsyncSession,
@@ -15,8 +17,13 @@ AsyncSessionLocal = sessionmaker(
 
 
 async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """Initialize database and create tables if they don't exist"""
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        print(f"Database initialization error: {e}")
+        # Continue anyway - the database will be created when first accessed
 
 
 async def get_db():

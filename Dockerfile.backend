@@ -1,0 +1,27 @@
+# Backend Dockerfile for FastAPI + Playwright
+FROM mcr.microsoft.com/playwright/python:v1.44.0-jammy
+
+WORKDIR /app
+
+# Copy backend code
+COPY email_tool /app/email_tool
+COPY requirements.txt /app/requirements.txt
+
+# Install Python dependencies
+RUN pip install --upgrade pip && pip install -r /app/requirements.txt
+
+# Install Playwright browsers with proper configuration for Docker
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN playwright install --with-deps chromium
+
+# Create static directory if it doesn't exist
+RUN mkdir -p /app/email_tool/backend/static/screenshots
+
+# Set environment variables for Playwright
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/ms-playwright/chromium-*/chrome-linux/chrome
+
+# Expose FastAPI port
+EXPOSE 8000
+
+CMD ["uvicorn", "email_tool.backend.main:app", "--host", "0.0.0.0", "--port", "8000"] 

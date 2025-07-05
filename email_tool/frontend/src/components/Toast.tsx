@@ -103,7 +103,7 @@ const Toast: React.FC<ToastProps> = ({ id, type, title, message, duration = 5000
             </div>
           </div>
           <div className="ml-3 w-0 flex-1">
-            <p className="text-sm font-medium">{title}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">{title}</p>
             {message && <p className="mt-1 text-sm opacity-90">{message}</p>}
           </div>
           <div className="ml-4 flex-shrink-0 flex">

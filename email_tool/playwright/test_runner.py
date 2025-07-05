@@ -7,27 +7,57 @@ async def run(html: str):
     issues = []
     if re.search(r"{{\s*\w+\s*}}", html):
         issues.append('Unreplaced placeholders')
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-        await page.set_content(html)
-        links = await page.query_selector_all('a')
-        for link in links:
-            url = await link.get_attribute('href')
-            if not url:
-                issues.append('missing href')
-        await browser.close()
+    try:
+        async with async_playwright() as p:
+            # Launch browser with proper Docker configuration
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu'
+                ]
+            )
+            page = await browser.new_page()
+            await page.set_content(html)
+            links = await page.query_selector_all('a')
+            for link in links:
+                url = await link.get_attribute('href')
+                if not url:
+                    issues.append('missing href')
+            await browser.close()
+    except Exception as e:
+        issues.append(f'Browser automation failed: {str(e)}')
     return {'passed': len(issues) == 0, 'issues': issues}
 
 async def screenshot(html: str, out_path: str):
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-        await page.set_content(html)
-        # Set viewport for consistent thumbnail size
-        await page.set_viewport_size({"width": 600, "height": 800})
-        await page.screenshot(path=out_path, full_page=True)
-        await browser.close()
+    try:
+        async with async_playwright() as p:
+            # Launch browser with proper Docker configuration
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu'
+                ]
+            )
+            page = await browser.new_page()
+            await page.set_content(html)
+            # Set viewport for consistent thumbnail size
+            await page.set_viewport_size({"width": 600, "height": 800})
+            await page.screenshot(path=out_path, full_page=True)
+            await browser.close()
+    except Exception as e:
+        print(f"Screenshot failed: {str(e)}", file=sys.stderr)
 
 if __name__ == '__main__':
     # Usage:
