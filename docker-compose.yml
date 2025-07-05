@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -10,11 +8,13 @@ services:
       - "8000:8000"
     volumes:
       - ./email_tool/backend/static:/app/email_tool/backend/static
-      - ../db.sqlite3:/app/db.sqlite3
       - screenshots:/app/email_tool/backend/static/screenshots
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
+      - DATABASE_URL=postgresql+asyncpg://emailuser:emailpass@postgres:5432/emaildb
+    depends_on:
+      - postgres
 
   frontend:
     build:
@@ -38,6 +38,18 @@ services:
     depends_on:
       - frontend
 
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-emailuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-emailpass}
+      - POSTGRES_DB=${POSTGRES_DB:-emaildb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
 volumes:
   screenshots:
-  build: 
+  build:
+  pgdata: 

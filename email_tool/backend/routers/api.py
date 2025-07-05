@@ -67,31 +67,29 @@ async def get_customers(db: AsyncSession = Depends(get_db)):
 
 
 @router.get('/marketing-groups')
-async def get_marketing_groups(db: AsyncSession = Depends(get_db)):
-    """Get all marketing groups"""
-    groups = await marketing_group_service.get_all_groups(db)
+async def get_marketing_groups(project_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+    """Get all marketing groups, optionally filtered by project_id"""
+    groups = await marketing_group_service.get_all_groups(db, project_id=project_id)
     return groups
 
 
 @router.post('/marketing-groups')
 async def create_marketing_group(
-    name: str = Form(...),
-    code: str = Form(...),
+    project_id: int = Form(...),
+    marketing_group_type_id: int = Form(...),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new marketing group"""
+    """Create a new marketing group for a project and type (enforces uniqueness)"""
     try:
-        # Check if group with this code already exists
-        existing = await marketing_group_service.get_group_by_code(db, code)
-        if existing:
-            raise HTTPException(status_code=400, detail='Marketing group with this code already exists')
-        
-        # Create the group
-        group = await marketing_group_service.create_group(db, name, code)
+        group = await marketing_group_service.create_group(db, project_id, marketing_group_type_id)
         return {
             'id': group.id,
-            'name': group.name,
-            'code': group.code,
+            'project_id': group.project_id,
+            'type': {
+                'id': group.type.id,
+                'label': group.type.label,
+                'code': group.type.code
+            },
             'created_at': group.created_at.isoformat()
         }
     except Exception as e:
@@ -253,7 +251,7 @@ async def run_tests(
 
 @router.get('/tags')
 async def get_tags(db: AsyncSession = Depends(get_db)):
-    """Get all tags with campaign counts"""
+    """Get all tags with project counts"""
     tags = await tag_service.get_all_tags(db)
     return tags
 
@@ -344,7 +342,7 @@ async def get_generated_emails(project_id: int, db: AsyncSession = Depends(get_d
             'project_id': email.project_id,
             'language': email.language,
             'html_content': email.html_content,
-            'generated_at': email.generated_at.isoformat() if email.generated_at else None,
+            'generated_at': email.generated_at.isoformat() if getattr(email, 'generated_at', None) else None,
             'thumbnail_url': thumbnail_url
         })
     return results

@@ -158,7 +158,7 @@ const Dashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-white dark:text-white">Dashboard</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Welcome to the Email Project Tool. Manage your multilingual email projects with ease.
         </p>
@@ -179,7 +179,7 @@ const Dashboard: React.FC = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Projects</dt>
-                  <dd className="text-lg font-medium text-gray-900 dark:text-white">{stats.totalProjects}</dd>
+                  <dd className="text-lg font-medium text-white dark:text-white">{stats.totalProjects}</dd>
                 </dl>
               </div>
             </div>
@@ -199,7 +199,7 @@ const Dashboard: React.FC = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Templates</dt>
-                  <dd className="text-lg font-medium text-gray-900 dark:text-white">{stats.totalTemplates}</dd>
+                  <dd className="text-lg font-medium text-white dark:text-white">{stats.totalTemplates}</dd>
                 </dl>
               </div>
             </div>
@@ -219,7 +219,7 @@ const Dashboard: React.FC = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Languages</dt>
-                  <dd className="text-lg font-medium text-gray-900 dark:text-white">{stats.totalLanguages}</dd>
+                  <dd className="text-lg font-medium text-white dark:text-white">{stats.totalLanguages}</dd>
                 </dl>
               </div>
             </div>
@@ -239,7 +239,7 @@ const Dashboard: React.FC = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Recent Tests</dt>
-                  <dd className="text-lg font-medium text-gray-900 dark:text-white">{stats.recentTests}</dd>
+                  <dd className="text-lg font-medium text-white dark:text-white">{stats.recentTests}</dd>
                 </dl>
               </div>
             </div>
@@ -249,7 +249,7 @@ const Dashboard: React.FC = () => {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+        <h2 className="text-lg font-medium text-white dark:text-white mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action, index) => (
             <button
@@ -262,7 +262,7 @@ const Dashboard: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={action.icon} />
                 </svg>
               </div>
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">{action.title}</h3>
+              <h3 className="text-sm font-medium text-white dark:text-white">{action.title}</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{action.description}</p>
             </button>
           ))}
@@ -271,7 +271,7 @@ const Dashboard: React.FC = () => {
 
       {/* Recent Projects */}
       <div>
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Projects</h2>
+        <h2 className="text-lg font-medium text-white dark:text-white mb-4">Recent Projects</h2>
         {projects.length > 0 ? (
           <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
             <ul className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -289,7 +289,7 @@ const Dashboard: React.FC = () => {
                             </div>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{project.name}</div>
+                            <div className="text-sm font-medium text-white dark:text-white">{project.name}</div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               Created {new Date(project.created_at).toLocaleDateString()}
                             </div>
@@ -309,7 +309,7 @@ const Dashboard: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            <h3 className="text-lg font-medium text-white dark:text-white mb-2">
               No projects yet
             </h3>
             <p className="text-gray-500 dark:text-gray-400 mb-4">

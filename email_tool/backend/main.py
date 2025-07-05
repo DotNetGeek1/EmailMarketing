@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from .data_access.database import init_db
+from .data_access.database import init_db, get_db
 from .routers import api
+from .services.marketing_group_service import MarketingGroupService
 
 # Import all models to ensure they are registered with SQLAlchemy
 from .models import (
@@ -27,5 +28,6 @@ app.mount("/static", StaticFiles(directory="email_tool/backend/static"), name="s
 @app.on_event("startup")
 async def startup_event():
     await init_db()
+    # No need to seed marketing groups here; use the marketing_group_type seeding script instead.
 
 app.include_router(api.router)

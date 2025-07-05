@@ -1,4 +1,5 @@
 from .base import Base
+from .customer import Customer
 from .project import Project
 from .marketing_group import MarketingGroup
 from .template import Template
@@ -11,9 +12,11 @@ from .test_scenario import TestScenario
 from .test_step import TestStep
 from .test_result import TestResult
 from .project_tag import project_tags
+from .marketing_group_type import MarketingGroupType
 
 __all__ = [
     'Base',
+    'Customer',
     'Project',
     'MarketingGroup',
     'Template',
@@ -26,4 +29,5 @@ __all__ = [
     'TestStep',
     'TestResult',
     'project_tags',
+    'MarketingGroupType',
 ]
