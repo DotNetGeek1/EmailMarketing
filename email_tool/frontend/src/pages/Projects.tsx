@@ -11,6 +11,7 @@ import { useCustomer } from '../contexts/CustomerContext';
 const Projects: React.FC = () => {
   const { setCurrentProject } = useProject();
   const { showSuccess, showError, showInfo } = useToast();
+  const { selectedCustomer } = useCustomer();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -18,95 +19,29 @@ const Projects: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [deleteTimeout, setDeleteTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [customers, setCustomers] = useState<{id: number, name: string}[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
-  const [showNewCustomer, setShowNewCustomer] = useState(false);
-  const [newCustomerName, setNewCustomerName] = useState('');
-  const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [marketingGroups, setMarketingGroups] = useState<{id: number, name: string, code: string}[]>([]);
-  const [selectedMarketingGroup, setSelectedMarketingGroup] = useState<number | null>(null);
 
   useEffect(() => {
     fetchProjects();
-    fetchCustomers();
-    fetchMarketingGroups();
-  }, []);
-
-  const fetchCustomers = async () => {
-    try {
-      const response = await fetch(apiUrl('/customers'));
-      if (response.ok) {
-        const data = await response.json();
-        setCustomers(data);
-      }
-    } catch (error) {
-      setCustomers([]);
-    }
-  };
-
-  const fetchMarketingGroups = async () => {
-    try {
-      const response = await fetch(apiUrl('/marketing-groups'));
-      if (response.ok) {
-        const data = await response.json();
-        setMarketingGroups(data);
-      }
-    } catch (error) {
-      setMarketingGroups([]);
-    }
-  };
-
-  const createCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCustomerName.trim()) return;
-    setCreatingCustomer(true);
-    try {
-      const response = await fetch(apiUrl('/customer'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `name=${encodeURIComponent(newCustomerName)}`,
-      });
-      if (response.ok) {
-        const newCustomer = await response.json();
-        setCustomers(prev => [newCustomer, ...prev]);
-        setSelectedCustomer(newCustomer.id);
-        setShowNewCustomer(false);
-        setNewCustomerName('');
-        showSuccess('Customer Created', `${newCustomer.name} has been created.`);
-      } else {
-        throw new Error('Failed to create customer');
-      }
-    } catch (error) {
-      showError('Creation Failed', 'Failed to create customer.');
-    } finally {
-      setCreatingCustomer(false);
-    }
-  };
+    // eslint-disable-next-line
+  }, [selectedCustomer]);
 
   const createProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProjectName.trim() || !selectedCustomer) return;
     setCreating(true);
     try {
-      let body = `name=${encodeURIComponent(newProjectName)}&customer_id=${selectedCustomer}`;
-      if (selectedMarketingGroup) {
-        body += `&marketing_group_id=${selectedMarketingGroup}`;
-      }
-      
+      const body = `name=${encodeURIComponent(newProjectName)}&customer_id=${selectedCustomer.id}`;
       const response = await fetch(apiUrl('/project'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body,
+        body,
       });
       if (response.ok) {
         const newProject = await response.json();
         setProjects(prev => [newProject, ...prev]);
         setNewProjectName('');
-        setSelectedMarketingGroup(null);
         setShowCreateForm(false);
-        // Show success toast
         showSuccess('Project Created', `${newProject.name} has been created successfully.`);
-        // Automatically open the new project
         openProject(newProject);
       } else {
         throw new Error('Failed to create project');
@@ -122,7 +57,7 @@ const Projects: React.FC = () => {
     if (!selectedCustomer) return;
     try {
       setLoading(true);
-      const response = await fetch(apiUrl(`/projects?customer_id=${selectedCustomer}`));
+      const response = await fetch(apiUrl(`/projects?customer_id=${selectedCustomer.id}`));
       if (response.ok) {
         const data = await response.json();
         setProjects(data);
@@ -138,9 +73,7 @@ const Projects: React.FC = () => {
 
   const openProject = (project: Project) => {
     setCurrentProject(project);
-    // Navigate to project detail page
     window.history.pushState({}, '', `/project/${project.id}`);
-    // Trigger a custom event to notify App.tsx to change the page
     window.dispatchEvent(new CustomEvent('navigate', { detail: 'project-detail' }));
   };
 
@@ -165,7 +98,6 @@ const Projects: React.FC = () => {
         showError('Deletion Failed', 'Failed to delete project. Please try again.');
       }
     } catch (error) {
-      console.error('Error deleting project:', error);
       showError('Deletion Failed', 'Failed to delete project. Please try again.');
     }
   };
@@ -174,8 +106,8 @@ const Projects: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Projects</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage your email projects and their associated templates.</p>
+          <h1 className="text-2xl font-bold text-brand-text">Projects</h1>
+          <p className="mt-1 text-sm text-gray-400">Manage your email projects and their associated templates.</p>
         </div>
         <button
           onClick={() => setShowCreateForm(true)}
@@ -197,56 +129,11 @@ const Projects: React.FC = () => {
             required
             placeholder="Enter project name"
           />
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer</label>
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedCustomer || ''}
-                onChange={e => setSelectedCustomer(Number(e.target.value))}
-                required
-                className="bg-brand-panel border border-brand-dark rounded px-2 py-1 text-sm text-[#f4f4f4]"
-              >
-                <option value="" disabled>Select customer...</option>
-                {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              <button type="button" onClick={() => setShowNewCustomer(true)} className="text-xs text-brand-accent hover:underline">New Customer</button>
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marketing Group (Optional)</label>
-            <select
-              value={selectedMarketingGroup || ''}
-              onChange={e => setSelectedMarketingGroup(Number(e.target.value) || null)}
-              className="bg-brand-panel border border-brand-dark rounded px-2 py-1 text-sm text-[#f4f4f4]"
-            >
-              <option value="">Select marketing group...</option>
-              {marketingGroups.map(group => (
-                <option key={group.id} value={group.id}>{group.name} ({group.code})</option>
-              ))}
-            </select>
-          </div>
-            {showNewCustomer && (
-              <form onSubmit={createCustomer} className="mt-2 flex gap-2">
-                <input
-                  type="text"
-                  value={newCustomerName}
-                  onChange={e => setNewCustomerName(e.target.value)}
-                  placeholder="Customer name"
-                  className="bg-brand-panel border border-brand-dark rounded px-2 py-1 text-sm text-[#f4f4f4]"
-                  required
-                />
-                <button type="submit" disabled={creatingCustomer} className="px-2 py-1 text-xs bg-brand-accent text-white rounded">{creatingCustomer ? 'Creating...' : 'Add'}</button>
-                <button type="button" onClick={() => setShowNewCustomer(false)} className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 rounded">Cancel</button>
-              </form>
-            )}
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 mt-6">
             <button
               type="button"
               onClick={() => setShowCreateForm(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
             >
               Cancel
             </button>
@@ -261,7 +148,25 @@ const Projects: React.FC = () => {
         </form>
       </Modal>
 
-      {loading ? (
+      {/* Empty state with Add New Project button */}
+      {!loading && projects.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16">
+          <svg className="mx-auto h-14 w-14 text-brand-accent mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          <h3 className="text-lg font-semibold text-brand-text mb-2">No projects yet</h3>
+          <p className="mb-6 text-gray-400">Get started by creating your first project for this customer.</p>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="bg-brand-accent hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow transition"
+          >
+            <svg className="w-5 h-5 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add New Project
+          </button>
+        </div>
+      ) : loading ? (
         <LoadingSpinner />
       ) : (
         <ProjectList

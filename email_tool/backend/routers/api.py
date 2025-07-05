@@ -9,6 +9,7 @@ from ..services.email_service import EmailService
 from ..services.test_service import TestService
 from ..services.tag_service import TagService
 from ..services.test_builder_service import TestBuilderService
+from ..services.template_render_service import TemplateRenderService
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import os
@@ -27,6 +28,7 @@ email_service = EmailService()
 test_service = TestService()
 tag_service = TagService()
 test_builder_service = TestBuilderService()
+template_render_service = TemplateRenderService()
 
 class TagCreate(BaseModel):
     name: str
@@ -99,18 +101,16 @@ async def create_marketing_group(
 async def create_project(
     name: str = Form(...), 
     customer_id: int = Form(None), 
-    marketing_group_id: int = Form(None), 
     db: AsyncSession = Depends(get_db)
 ):
     try:
-        project = await project_service.create_project(db, name, customer_id, marketing_group_id)
+        project = await project_service.create_project(db, name, customer_id)
         return {
             'id': project.id, 
             'name': project.name,
             'created_at': project.created_at.isoformat(),
             'status': project.status,
             'customer_id': project.customer_id,
-            'marketing_group_id': project.marketing_group_id,
             'templates_count': 0,
             'languages_count': 0
         }
@@ -148,6 +148,14 @@ async def upload_template(
         template, keys, created_tags = await template_service.upload_template(db, project_id, file.filename, content)
         if not template:
             raise HTTPException(status_code=404, detail='Project not found')
+        
+        # Generate preview image in background
+        try:
+            template_id = getattr(template, 'id')
+            await template_render_service.get_template_preview(db, template_id)
+        except Exception as preview_error:
+            # Don't fail the upload if preview generation fails
+            print(f"Failed to generate preview for template {getattr(template, 'id')}: {preview_error}")
         
         return {
             'template_id': template.id, 
@@ -326,7 +334,34 @@ async def delete_template(template_id: int, db: AsyncSession = Depends(get_db)):
     success = await template_service.delete_template(db, template_id)
     if not success:
         raise HTTPException(status_code=404, detail='Template not found')
+    # Also delete any preview images
+    await template_render_service.delete_template_previews(template_id)
     return {'message': 'Template deleted successfully'}
+
+@router.get('/template/{template_id}/preview')
+async def get_template_preview(template_id: int, db: AsyncSession = Depends(get_db)):
+    """Get template preview with rendered image"""
+    try:
+        preview = await template_render_service.get_template_preview(db, template_id)
+        return preview
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate preview: {str(e)}")
+
+@router.post('/template/{template_id}/preview/regenerate')
+async def regenerate_template_preview(template_id: int, db: AsyncSession = Depends(get_db)):
+    """Regenerate template preview image"""
+    try:
+        # Delete existing previews first
+        await template_render_service.delete_template_previews(template_id)
+        # Generate new preview
+        preview = await template_render_service.get_template_preview(db, template_id)
+        return preview
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to regenerate preview: {str(e)}")
 
 @router.get('/emails/{project_id}')
 async def get_generated_emails(project_id: int, db: AsyncSession = Depends(get_db)):

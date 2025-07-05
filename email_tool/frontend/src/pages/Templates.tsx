@@ -4,6 +4,7 @@ import Modal from '../components/Modal';
 import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TemplateList, { Template } from '../components/TemplateList';
+import TemplatePreview from '../components/TemplatePreview';
 import { apiUrl } from '../config';
 import PlaceholderBadge from '../components/PlaceholderBadge';
 
@@ -16,7 +17,7 @@ const Templates: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
+  const [previewTemplateId, setPreviewTemplateId] = useState<number | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [deleteTimeout, setDeleteTimeout] = useState<NodeJS.Timeout | null>(null);
 
@@ -187,35 +188,17 @@ const Templates: React.FC = () => {
         <TemplateList
           templates={templates}
           projects={projects}
-          onPreview={setPreviewTemplate}
+          onPreview={(template) => setPreviewTemplateId(template.id)}
           onDelete={deleteTemplate}
         />
       )}
 
-      <Modal 
-        title={`Template Preview: ${previewTemplate?.filename}`} 
-        isOpen={!!previewTemplate} 
-        onClose={() => setPreviewTemplate(null)}
-      >
-        {previewTemplate && (
-          <>
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Placeholders:</h4>
-              <div className="flex flex-wrap gap-2">
-                {previewTemplate.placeholders.map((placeholder, index) => (
-                  <PlaceholderBadge key={index} value={placeholder} />
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">HTML Content:</h4>
-              <pre className="bg-brand-panel border border-brand-dark p-4 rounded-md text-sm overflow-x-auto max-h-96 text-gray-900 dark:text-gray-100">
-                {previewTemplate.content}
-              </pre>
-            </div>
-          </>
-        )}
-      </Modal>
+      {previewTemplateId && (
+        <TemplatePreview
+          templateId={previewTemplateId}
+          onClose={() => setPreviewTemplateId(null)}
+        />
+      )}
     </div>
   );
 };

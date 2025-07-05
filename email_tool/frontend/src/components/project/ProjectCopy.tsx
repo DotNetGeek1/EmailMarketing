@@ -5,6 +5,7 @@ import LoadingSpinner from '../LoadingSpinner';
 import PlaceholderBadge from '../PlaceholderBadge';
 import Modal from '../Modal';
 import { apiUrl } from '../../config';
+import CSVImportModal from '../CSVImportModal';
 
 interface Tag {
   id: number;
@@ -33,6 +34,7 @@ const ProjectCopy: React.FC = () => {
   const [newComment, setNewComment] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
   const [addingComment, setAddingComment] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     fetchTags();
@@ -267,9 +269,17 @@ const ProjectCopy: React.FC = () => {
           </p>
         </div>
         <div className="flex space-x-3">
+          <button onClick={() => setShowImportModal(true)} className="px-3 py-1 rounded bg-green-600 text-white text-sm">Import CSV</button>
           <button onClick={addLocale} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">Add Locale</button>
         </div>
       </div>
+      <CSVImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportComplete={() => { setShowImportModal(false); /* Optionally refresh data here */ }}
+        projects={[{ id: currentProject.id, name: currentProject.name }]}
+        availableTags={tags}
+      />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead>

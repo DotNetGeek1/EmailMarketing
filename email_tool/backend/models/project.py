@@ -14,7 +14,7 @@ class Project(Base):
     customer_id = Column(Integer, ForeignKey('customer.id'), nullable=True)
 
     customer = relationship('Customer', backref='projects')
-    marketing_groups = relationship('MarketingGroup', back_populates='project')
+    marketing_groups = relationship('MarketingGroup', back_populates='project', cascade='all, delete')
     templates = relationship('Template', back_populates='project')
     copies = relationship('LocalizedCopy', back_populates='project')
     generated_emails = relationship('GeneratedEmail', back_populates='project')

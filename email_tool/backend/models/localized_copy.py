@@ -13,5 +13,7 @@ class LocalizedCopy(Base):
     value = Column(Text, nullable=False)
     status = Column(String, nullable=False, default='Draft')
     created_at = Column(DateTime, default=datetime.utcnow)
+    template_id = Column(Integer, ForeignKey('template.id'), nullable=False)
 
     project = relationship('Project', back_populates='copies')
+    template = relationship('Template', back_populates='localized_copies')

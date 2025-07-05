@@ -1,5 +1,6 @@
 import React from 'react';
 import PlaceholderBadge from './PlaceholderBadge';
+import { apiUrl } from '../config';
 
 export interface Template {
   id: number;
@@ -8,6 +9,7 @@ export interface Template {
   content: string;
   created_at: string;
   placeholders: string[];
+  preview_image?: string;
 }
 
 interface Project {
@@ -42,7 +44,7 @@ const TemplateList: React.FC<TemplateListProps> = ({ templates, projects, onPrev
           <li key={template.id}>
             <div className="px-4 py-4 sm:px-6">
               <div className="flex items-center justify-between">
-                <div className="flex items-center">
+                <div className="flex items-center flex-1">
                   <div className="flex-shrink-0">
                     <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
                       <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -50,7 +52,7 @@ const TemplateList: React.FC<TemplateListProps> = ({ templates, projects, onPrev
                       </svg>
                     </div>
                   </div>
-                  <div className="ml-4">
+                  <div className="ml-4 flex-1">
                     <div className="text-sm font-medium text-gray-900 dark:text-white">{template.filename}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       Project: {projects.find(p => p.id === template.project_id)?.name || 'Unknown'}
@@ -65,6 +67,29 @@ const TemplateList: React.FC<TemplateListProps> = ({ templates, projects, onPrev
                     </div>
                   </div>
                 </div>
+                
+                {/* Preview Thumbnail */}
+                <div className="ml-4 mr-4">
+                  <div className="w-24 h-16 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 overflow-hidden">
+                    {template.preview_image ? (
+                      <img
+                        src={apiUrl(template.preview_image)}
+                        alt="Template Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-xs text-gray-500">No preview</div>';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+                        No preview
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
                 <div className="flex items-center space-x-2">
                   {onPreview && (
                     <button className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors" onClick={() => onPreview(template)}>

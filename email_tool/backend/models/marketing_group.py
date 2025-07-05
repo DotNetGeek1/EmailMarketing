@@ -13,6 +13,7 @@ class MarketingGroup(Base):
 
     project = relationship('Project', back_populates='marketing_groups')
     type = relationship('MarketingGroupType', back_populates='marketing_groups')
+    templates = relationship('Template', back_populates='marketing_group', cascade='all, delete')
 
     __table_args__ = (
         UniqueConstraint('project_id', 'marketing_group_type_id', name='uix_project_group_type'),

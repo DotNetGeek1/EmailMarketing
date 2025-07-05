@@ -4,12 +4,11 @@ from ..models import Project, Template, LocalizedCopy, MarketingGroup
 from typing import Optional, List, Dict, Any
 
 class ProjectService:
-    async def create_project(self, db: AsyncSession, name: str, customer_id: Optional[int] = None, marketing_group_id: Optional[int] = None) -> Project:
+    async def create_project(self, db: AsyncSession, name: str, customer_id: Optional[int] = None) -> Project:
         """Create a new project"""
         project = Project(
             name=name,
-            customer_id=customer_id,
-            marketing_group_id=marketing_group_id
+            customer_id=customer_id
         )
         db.add(project)
         await db.commit()
@@ -39,22 +38,28 @@ class ProjectService:
         return await db.get(Project, project_id)
 
     async def get_projects(self, db: AsyncSession, customer_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Get all projects with template and copy counts"""
+        """Get all projects with template and copy counts using explicit joins"""
+        # Build the base query
         query = select(Project)
         if customer_id is not None:
             query = query.filter(Project.customer_id == customer_id)
         
-        query = query.outerjoin(Template, Project.id == Template.project_id)
-        query = query.outerjoin(LocalizedCopy, Project.id == LocalizedCopy.project_id)
-        
+        # Execute the query to get projects
         result = await db.execute(query)
         projects = result.unique().scalars().all()
         
-        # Group and count templates and copies
+        # Get counts for each project using separate queries
         project_data = []
         for project in projects:
-            templates_count = len(project.templates) if project.templates else 0
-            copies_count = len(set(copy.locale for copy in project.copies)) if project.copies else 0
+            # Get template count
+            template_count_query = select(func.count(Template.id)).filter(Template.project_id == project.id)
+            template_result = await db.execute(template_count_query)
+            templates_count = template_result.scalar() or 0
+            
+            # Get unique locale count
+            locale_count_query = select(func.count(func.distinct(LocalizedCopy.locale))).filter(LocalizedCopy.project_id == project.id)
+            locale_result = await db.execute(locale_count_query)
+            copies_count = locale_result.scalar() or 0
             
             project_data.append({
                 'id': project.id,
@@ -62,7 +67,6 @@ class ProjectService:
                 'created_at': project.created_at.isoformat(),
                 'status': project.status,
                 'customer_id': project.customer_id,
-                'marketing_group_id': project.marketing_group_id,
                 'templates_count': templates_count,
                 'languages_count': copies_count
             })

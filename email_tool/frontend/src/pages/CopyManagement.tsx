@@ -3,6 +3,7 @@ import Modal from '../components/Modal';
 import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PlaceholderBadge from '../components/PlaceholderBadge';
+import CSVImportModal from '../components/CSVImportModal';
 import { apiUrl } from '../config';
 import { useToast } from '../contexts/ToastContext';
 
@@ -46,6 +47,7 @@ const CopyManagement: React.FC = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
@@ -89,10 +91,6 @@ const CopyManagement: React.FC = () => {
         const tagsData = await tagsResponse.json();
         setTags(tagsData);
       }
-
-      // TODO: Fetch copy entries when backend endpoint is available
-      // For now, we'll use empty array
-      setCopyEntries([]);
       
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -101,9 +99,31 @@ const CopyManagement: React.FC = () => {
     }
   };
 
+  const fetchCopyEntries = async (projectId: string) => {
+    if (!projectId) {
+      setCopyEntries([]);
+      return;
+    }
+    
+    try {
+      const response = await fetch(apiUrl(`/copy/${projectId}`));
+      if (response.ok) {
+        const data = await response.json();
+        setCopyEntries(data);
+      } else {
+        console.error('Failed to fetch copy entries');
+        setCopyEntries([]);
+      }
+    } catch (error) {
+      console.error('Error fetching copy entries:', error);
+      setCopyEntries([]);
+    }
+  };
+
   const handleProjectChange = (projectId: string) => {
     setSelectedProject(projectId);
     setSelectedTag('');
+    fetchCopyEntries(projectId);
   };
 
   const getAvailableTags = () => {
@@ -128,11 +148,9 @@ const CopyManagement: React.FC = () => {
 
       if (response.ok) {
         const result = await response.json();
-        setCopyEntries(prev => [...prev, result]);
+        // Refresh copy entries to show the new entry
+        await fetchCopyEntries(selectedProject);
         setNewEntry({ locale: '', key: '', value: '' });
-                 setSelectedProject('');
-        setSelectedLanguage('');
-        setSelectedTag('');
         setShowAddForm(false);
         showSuccess('Copy Added', 'Copy entry has been added successfully.');
       } else {
@@ -182,6 +200,11 @@ const CopyManagement: React.FC = () => {
     return languageNames[code] || code;
   };
 
+  const handleImportComplete = () => {
+    // Refresh the copy entries after import
+    fetchData();
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -193,15 +216,26 @@ const CopyManagement: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Copy Management</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage localized copy for your email projects.</p>
         </div>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Add Copy
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-accent hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Import CSV
+          </button>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Copy
+          </button>
+        </div>
       </div>
 
       <Modal title="Add Copy Entry" isOpen={showAddForm} onClose={() => setShowAddForm(false)}>
@@ -217,24 +251,24 @@ const CopyManagement: React.FC = () => {
           <FormField
             label="Language"
             type="select"
-            value={selectedLanguage}
-            onChange={(e) => setSelectedLanguage(e.target.value)}
+            value={newEntry.locale}
+            onChange={(e) => setNewEntry(prev => ({ ...prev, locale: e.target.value }))}
             options={languages.map(l => ({ value: l, label: getLanguageName(l) }))}
             required
           />
           <FormField
             label="Tag"
             type="select"
-            value={selectedTag}
-            onChange={(e) => setSelectedTag(e.target.value)}
+            value={newEntry.key}
+            onChange={(e) => setNewEntry(prev => ({ ...prev, key: e.target.value }))}
             options={getAvailableTags().map(tag => ({ value: tag.name, label: tag.name }))}
             required
           />
           <FormField
             label="Copy Value"
             type="textarea"
-            value={copyValue}
-            onChange={(e) => setCopyValue(e.target.value)}
+            value={newEntry.value}
+            onChange={(e) => setNewEntry(prev => ({ ...prev, value: e.target.value }))}
             placeholder="Enter the localized copy text"
             required
           />
@@ -257,14 +291,48 @@ const CopyManagement: React.FC = () => {
         </form>
       </Modal>
 
+      <CSVImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportComplete={handleImportComplete}
+        projects={projects}
+        availableTags={tags}
+      />
+
       <div className="bg-brand-panel border border-brand-dark rounded-lg shadow p-6 text-[#f4f4f4] transition-colors duration-200">
+        {/* Project Selector */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Select Project
+          </label>
+          <select
+            value={selectedProject}
+            onChange={(e) => handleProjectChange(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-brand-accent"
+          >
+            <option value="">Choose a project...</option>
+            {projects.map(project => (
+              <option key={project.id} value={project.id.toString()}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {copyEntries.length === 0 ? (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No copy entries</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding localized copy for your projects.</p>
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+              {selectedProject ? 'No copy entries' : 'Select a project'}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {selectedProject 
+                ? 'Get started by adding localized copy for this project.'
+                : 'Choose a project to view its copy entries.'
+              }
+            </p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">

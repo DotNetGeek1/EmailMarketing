@@ -1,4 +1,6 @@
 import re
+import os
+from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..models import Project, Template, Placeholder
@@ -68,16 +70,27 @@ class TemplateService:
         
         # Convert to list of dictionaries with placeholders
         template_list = []
+        screenshots_dir = Path("static/screenshots")
+        
         for template in templates:
             template_id = getattr(template, 'id')
             placeholders = await self.get_placeholders(db, template_id)
+            
+            # Check for existing preview image
+            preview_image = None
+            if screenshots_dir.exists():
+                existing_files = list(screenshots_dir.glob(f"template_{template_id}_*.png"))
+                if existing_files:
+                    preview_image = f"/static/screenshots/{existing_files[0].name}"
+            
             template_dict = {
                 'id': template_id,
                 'project_id': template.project_id,
                 'filename': template.filename,
                 'content': template.content,
                 'created_at': template.created_at.isoformat(),
-                'placeholders': placeholders
+                'placeholders': placeholders,
+                'preview_image': preview_image
             }
             template_list.append(template_dict)
         
