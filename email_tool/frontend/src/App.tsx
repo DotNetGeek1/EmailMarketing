@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { CampaignProvider } from './contexts/CampaignContext';
+import { ProjectProvider } from './contexts/ProjectContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { CustomerProvider, useCustomer } from './contexts/CustomerContext';
 import CustomerSelector from './pages/CustomerSelector';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
-import Campaigns from './pages/Campaigns';
-import CampaignDetail from './pages/CampaignDetail';
+import Projects from './pages/Projects';
+import ProjectDetail from './pages/ProjectDetail';
 import Testing from './pages/Testing';
 import TagManagement from './pages/TagManagement';
 import TestBuilder from './pages/TestBuilder';
 
-type Page = 'dashboard' | 'campaigns' | 'campaign-detail' | 'testing' | 'tags' | 'test-builder';
+type Page = 'dashboard' | 'projects' | 'project-detail' | 'testing' | 'tags' | 'test-builder';
 
 const MainApp: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -38,10 +38,10 @@ const MainApp: React.FC = () => {
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />;
-      case 'campaigns':
-        return <Campaigns />;
-      case 'campaign-detail':
-        return <CampaignDetail />;
+      case 'projects':
+        return <Projects />;
+      case 'project-detail':
+        return <ProjectDetail />;
       case 'testing':
         return <Testing />;
       case 'tags':
@@ -77,9 +77,9 @@ const App: React.FC = () => (
   <ThemeProvider>
     <ToastProvider>
       <CustomerProvider>
-        <CampaignProvider>
+        <ProjectProvider>
           <MainApp />
-        </CampaignProvider>
+        </ProjectProvider>
       </CustomerProvider>
     </ToastProvider>
   </ThemeProvider>

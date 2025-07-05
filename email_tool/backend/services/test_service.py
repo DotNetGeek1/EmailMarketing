@@ -9,9 +9,9 @@ from typing import Optional, List, Dict, Any
 class TestService:
     """Execute Playwright tests against generated emails."""
 
-    async def run_tests(self, db: AsyncSession, campaign_id: int, test_config: Optional[Dict[str, Any]] = None) -> int:
+    async def run_tests(self, db: AsyncSession, project_id: int, test_config: Optional[Dict[str, Any]] = None) -> int:
         result = await db.execute(
-            select(GeneratedEmail).filter_by(campaign_id=campaign_id)
+            select(GeneratedEmail).filter_by(project_id=project_id)
         )
         emails = result.scalars().all()
         

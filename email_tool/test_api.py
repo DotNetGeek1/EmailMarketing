@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script to verify campaign creation and template upload functionality
+Test script to verify project creation and template upload functionality
 """
 import requests
 import json
@@ -10,29 +10,29 @@ import os
 BASE_URL = "http://localhost:8000"
 API_BASE = f"{BASE_URL}/api"
 
-def test_campaign_creation():
-    """Test creating a new campaign"""
-    print("Testing campaign creation...")
+def test_project_creation():
+    """Test creating a new project"""
+    print("Testing project creation...")
     
-    data = {"name": "Test Campaign 2024"}
-    response = requests.post(f"{API_BASE}/campaign", data=data)
+    data = {"name": "Test Project 2024"}
+    response = requests.post(f"{API_BASE}/project", data=data)
     
     print(f"Status Code: {response.status_code}")
     print(f"Response: {response.text}")
     
     if response.status_code == 200:
-        campaign_data = response.json()
-        print(f"✅ Campaign created successfully!")
-        print(f"   ID: {campaign_data['id']}")
-        print(f"   Name: {campaign_data['name']}")
-        return campaign_data['id']
+        project_data = response.json()
+        print(f"✅ Project created successfully!")
+        print(f"   ID: {project_data['id']}")
+        print(f"   Name: {project_data['name']}")
+        return project_data['id']
     else:
-        print("❌ Campaign creation failed")
+        print("❌ Project creation failed")
         return None
 
-def test_template_upload(campaign_id):
+def test_template_upload(project_id):
     """Test uploading a template"""
-    print(f"\nTesting template upload for campaign {campaign_id}...")
+    print(f"\nTesting template upload for project {project_id}...")
     
     # Create a simple HTML template for testing
     html_content = """
@@ -56,7 +56,7 @@ def test_template_upload(campaign_id):
     try:
         with open("test_template.html", "rb") as f:
             files = {"file": ("test_template.html", f, "text/html")}
-            data = {"campaign_id": str(campaign_id)}
+            data = {"project_id": str(project_id)}
             response = requests.post(f"{API_BASE}/template", files=files, data=data)
         
         print(f"Status Code: {response.status_code}")
@@ -77,20 +77,20 @@ def test_template_upload(campaign_id):
         if os.path.exists("test_template.html"):
             os.remove("test_template.html")
 
-def test_get_campaigns():
-    """Test getting all campaigns"""
-    print("\nTesting get campaigns...")
+def test_get_projects():
+    """Test getting all projects"""
+    print("\nTesting get projects...")
     
-    response = requests.get(f"{API_BASE}/campaigns")
+    response = requests.get(f"{API_BASE}/projects")
     
     print(f"Status Code: {response.status_code}")
     if response.status_code == 200:
-        campaigns = response.json()
-        print(f"✅ Retrieved {len(campaigns)} campaigns")
-        for campaign in campaigns:
-            print(f"   - {campaign['name']} (ID: {campaign['id']})")
+        projects = response.json()
+        print(f"✅ Retrieved {len(projects)} projects")
+        for project in projects:
+            print(f"   - {project['name']} (ID: {project['id']})")
     else:
-        print(f"❌ Failed to get campaigns: {response.text}")
+        print(f"❌ Failed to get projects: {response.text}")
 
 def test_get_templates():
     """Test getting all templates"""
@@ -111,21 +111,21 @@ def main():
     print("🚀 Testing Email Marketing Tool API")
     print("=" * 50)
     
-    # Test campaign creation
-    campaign_id = test_campaign_creation()
+    # Test project creation
+    project_id = test_project_creation()
     
-    if campaign_id:
+    if project_id:
         # Test template upload
-        template_id = test_template_upload(campaign_id)
+        template_id = test_template_upload(project_id)
         
-        # Test getting campaigns and templates
-        test_get_campaigns()
+        # Test getting projects and templates
+        test_get_projects()
         test_get_templates()
         
         print("\n" + "=" * 50)
         print("✅ All tests completed!")
     else:
-        print("\n❌ Campaign creation failed, skipping other tests")
+        print("\n❌ Project creation failed, skipping other tests")
 
 if __name__ == "__main__":
     main() 

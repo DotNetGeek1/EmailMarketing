@@ -8,7 +8,7 @@ import { useToast } from '../contexts/ToastContext';
 
 interface CopyEntry {
   id: number;
-  campaign_id: number;
+  project_id: number;
   locale: string;
   key: string;
   value: string;
@@ -17,7 +17,7 @@ interface CopyEntry {
   comments: string;
 }
 
-interface Campaign {
+interface Project {
   id: number;
   name: string;
   templates_count: number;
@@ -26,7 +26,7 @@ interface Campaign {
 
 interface Template {
   id: number;
-  campaign_id: number;
+  project_id: number;
   filename: string;
   placeholders: string[];
 }
@@ -41,12 +41,12 @@ interface Tag {
 const CopyManagement: React.FC = () => {
   const { showSuccess, showError, showInfo } = useToast();
   const [copyEntries, setCopyEntries] = useState<CopyEntry[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedCampaign, setSelectedCampaign] = useState<string>('');
+  const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
   const [copyValue, setCopyValue] = useState('');
@@ -69,11 +69,11 @@ const CopyManagement: React.FC = () => {
     try {
       setLoading(true);
       
-      // Fetch campaigns
-      const campaignsResponse = await fetch(apiUrl('/campaigns'));
-      if (campaignsResponse.ok) {
-        const campaignsData = await campaignsResponse.json();
-        setCampaigns(campaignsData);
+      // Fetch projects
+      const projectsResponse = await fetch(apiUrl('/projects'));
+      if (projectsResponse.ok) {
+        const projectsData = await projectsResponse.json();
+        setProjects(projectsData);
       }
 
       // Fetch templates
@@ -101,19 +101,19 @@ const CopyManagement: React.FC = () => {
     }
   };
 
-  const handleCampaignChange = (campaignId: string) => {
-    setSelectedCampaign(campaignId);
+  const handleProjectChange = (projectId: string) => {
+    setSelectedProject(projectId);
     setSelectedTag('');
   };
 
   const getAvailableTags = () => {
-    // Return all tags for now - in a real implementation, you might want to filter by campaign
+    // Return all tags for now - in a real implementation, you might want to filter by project
     return tags;
   };
 
   const addCopyEntry = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCampaign || !newEntry.locale || !newEntry.key || !newEntry.value) return;
+    if (!selectedProject || !newEntry.locale || !newEntry.key || !newEntry.value) return;
     
     setSubmitting(true);
     try {
@@ -121,7 +121,7 @@ const CopyManagement: React.FC = () => {
       formData.append('key', newEntry.key);
       formData.append('value', newEntry.value);
 
-      const response = await fetch(apiUrl(`/copy/${selectedCampaign}/${newEntry.locale}`), {
+      const response = await fetch(apiUrl(`/copy/${selectedProject}/${newEntry.locale}`), {
         method: 'POST',
         body: formData,
       });
@@ -130,7 +130,7 @@ const CopyManagement: React.FC = () => {
         const result = await response.json();
         setCopyEntries(prev => [...prev, result]);
         setNewEntry({ locale: '', key: '', value: '' });
-                 setSelectedCampaign('');
+                 setSelectedProject('');
         setSelectedLanguage('');
         setSelectedTag('');
         setShowAddForm(false);
@@ -159,7 +159,7 @@ const CopyManagement: React.FC = () => {
     try {
       const entry = copyEntries.find(e => e.id === id);
       if (!entry) return;
-      const response = await fetch(apiUrl(`/copy/${selectedCampaign}/${entry.locale}/${entry.key}`), {
+      const response = await fetch(apiUrl(`/copy/${selectedProject}/${entry.locale}/${entry.key}`), {
         method: 'DELETE',
       });
       if (response.ok) {
@@ -191,7 +191,7 @@ const CopyManagement: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Copy Management</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage localized copy for your email campaigns.</p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage localized copy for your email projects.</p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
@@ -207,11 +207,11 @@ const CopyManagement: React.FC = () => {
       <Modal title="Add Copy Entry" isOpen={showAddForm} onClose={() => setShowAddForm(false)}>
         <form onSubmit={addCopyEntry}>
           <FormField
-            label="Campaign"
+            label="Project"
             type="select"
-            value={selectedCampaign}
-            onChange={(e) => handleCampaignChange(e.target.value)}
-            options={campaigns.map(c => ({ value: c.id.toString(), label: c.name }))}
+            value={selectedProject}
+            onChange={(e) => handleProjectChange(e.target.value)}
+            options={projects.map(p => ({ value: p.id.toString(), label: p.name }))}
             required
           />
           <FormField
@@ -264,7 +264,7 @@ const CopyManagement: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No copy entries</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding localized copy for your campaigns.</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding localized copy for your projects.</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -283,7 +283,7 @@ const CopyManagement: React.FC = () => {
                       <div className="ml-4">
                         <div className="flex items-center space-x-2">
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {campaigns.find(c => c.id === entry.campaign_id)?.name || 'Unknown Campaign'}
+                            {projects.find(p => p.id === entry.project_id)?.name || 'Unknown Project'}
                           </span>
                           <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
                           <span className="text-sm text-gray-500 dark:text-gray-400">{getLanguageName(entry.locale)}</span>

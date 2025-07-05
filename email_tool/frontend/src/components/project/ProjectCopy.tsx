@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCampaign, CopyEntry } from '../../contexts/CampaignContext';
+import { useProject, CopyEntry } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
 import LoadingSpinner from '../LoadingSpinner';
 import PlaceholderBadge from '../PlaceholderBadge';
@@ -19,8 +19,8 @@ interface CopyData {
   };
 }
 
-const CampaignCopy: React.FC = () => {
-  const { currentCampaign, copyEntries, setCopyEntries, templates } = useCampaign();
+const ProjectCopy: React.FC = () => {
+  const { currentProject, copyEntries, setCopyEntries, templates } = useProject();
   const { showSuccess, showError } = useToast();
   const [tags, setTags] = useState<Tag[]>([]);
   const [locales, setLocales] = useState<string[]>(['en']);
@@ -139,7 +139,7 @@ const CampaignCopy: React.FC = () => {
   };
 
   const saveAllCopy = async () => {
-    if (!currentCampaign) return;
+    if (!currentProject) return;
     setSaving(true);
     try {
       const promises: Promise<any>[] = [];
@@ -152,7 +152,7 @@ const CampaignCopy: React.FC = () => {
             formData.append('value', entry.value.trim());
             formData.append('status', entry.status || 'Draft');
             promises.push(
-              fetch(apiUrl(`/copy/${currentCampaign.id}/${locale}`), {
+              fetch(apiUrl(`/copy/${currentProject.id}/${locale}`), {
                 method: 'POST',
                 body: formData,
               })
@@ -161,7 +161,7 @@ const CampaignCopy: React.FC = () => {
         });
       });
       await Promise.all(promises);
-      const copyResponse = await fetch(apiUrl(`/copy/${currentCampaign.id}`));
+      const copyResponse = await fetch(apiUrl(`/copy/${currentProject.id}`));
       if (copyResponse.ok) {
         const copyData = await copyResponse.json();
         setCopyEntries(copyData);
@@ -182,11 +182,11 @@ const CampaignCopy: React.FC = () => {
   };
 
   const fetchComments = async (tagName: string, locale: string) => {
-    if (!currentCampaign) return;
+    if (!currentProject) return;
     
     setLoadingComments(true);
     try {
-      const response = await fetch(apiUrl(`/copy/${currentCampaign.id}/${locale}/${tagName}/comments`));
+      const response = await fetch(apiUrl(`/copy/${currentProject.id}/${locale}/${tagName}/comments`));
       if (response.ok) {
         const commentsData = await response.json();
         setComments(commentsData);
@@ -202,14 +202,14 @@ const CampaignCopy: React.FC = () => {
   };
 
   const addComment = async () => {
-    if (!currentCampaign || !selectedCopyEntry || !newComment.trim()) return;
+    if (!currentProject || !selectedCopyEntry || !newComment.trim()) return;
     
     setAddingComment(true);
     try {
       const formData = new FormData();
       formData.append('comment', newComment.trim());
       
-      const response = await fetch(apiUrl(`/copy/${currentCampaign.id}/${selectedCopyEntry.locale}/${selectedCopyEntry.tagName}/comments`), {
+      const response = await fetch(apiUrl(`/copy/${currentProject.id}/${selectedCopyEntry.locale}/${selectedCopyEntry.tagName}/comments`), {
         method: 'POST',
         body: formData,
       });
@@ -237,7 +237,7 @@ const CampaignCopy: React.FC = () => {
     setNewComment('');
   };
 
-  if (!currentCampaign) return null;
+  if (!currentProject) return null;
 
   // Get all unique tags from templates
   const templateTags = new Set<string>();
@@ -263,7 +263,7 @@ const CampaignCopy: React.FC = () => {
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Copy Management</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage localized copy for {currentCampaign.name}
+            Manage localized copy for {currentProject.name}
           </p>
         </div>
         <div className="flex space-x-3">
@@ -383,4 +383,4 @@ const CampaignCopy: React.FC = () => {
   );
 };
 
-export default CampaignCopy; 
+export default ProjectCopy; 

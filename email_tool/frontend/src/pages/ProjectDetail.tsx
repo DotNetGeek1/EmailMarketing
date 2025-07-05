@@ -1,27 +1,27 @@
 import React, { useEffect } from 'react';
-import { useCampaign } from '../contexts/CampaignContext';
-import CampaignOverview from '../components/campaign/CampaignOverview';
-import CampaignTemplates from '../components/campaign/CampaignTemplates';
-import CampaignCopy from '../components/campaign/CampaignCopy';
-import CampaignEmails from '../components/campaign/CampaignEmails';
+import { useProject } from '../contexts/ProjectContext';
+import ProjectOverview from '../components/project/ProjectOverview';
+import ProjectTemplates from '../components/project/ProjectTemplates';
+import ProjectCopy from '../components/project/ProjectCopy';
+import ProjectEmails from '../components/project/ProjectEmails';
 
-const CampaignDetail: React.FC = () => {
-  const { currentCampaign, activeTab, setActiveTab, refreshCampaignData } = useCampaign();
+const ProjectDetail: React.FC = () => {
+  const { currentProject, activeTab, setActiveTab, refreshProjectData } = useProject();
 
   useEffect(() => {
-    if (currentCampaign) {
-      refreshCampaignData();
+    if (currentProject) {
+      refreshProjectData();
     }
-  }, [currentCampaign, refreshCampaignData]);
+  }, [currentProject, refreshProjectData]);
 
-  if (!currentCampaign) {
+  if (!currentProject) {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          No Campaign Selected
+          No Project Selected
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Please select a campaign from the campaigns list to view its details.
+          Please select a project from the projects list to view its details.
         </p>
       </div>
     );
@@ -37,15 +37,15 @@ const CampaignDetail: React.FC = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <CampaignOverview />;
+        return <ProjectOverview />;
       case 'templates':
-        return <CampaignTemplates />;
+        return <ProjectTemplates />;
       case 'copy':
-        return <CampaignCopy />;
+        return <ProjectCopy />;
       case 'emails':
-        return <CampaignEmails />;
+        return <ProjectEmails />;
       default:
-        return <CampaignOverview />;
+        return <ProjectOverview />;
     }
   };
 
@@ -53,10 +53,17 @@ const CampaignDetail: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{currentCampaign.name}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{currentProject.name}</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Manage templates, copy, and generated emails for this campaign.
+          Manage templates, copy, and generated emails for this project.
         </p>
+        {currentProject.marketing_group && (
+          <div className="mt-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+              {currentProject.marketing_group.code} - {currentProject.marketing_group.name}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -89,4 +96,4 @@ const CampaignDetail: React.FC = () => {
   );
 };
 
-export default CampaignDetail; 
+export default ProjectDetail; 

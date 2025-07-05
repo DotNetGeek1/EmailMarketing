@@ -7,7 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 
 interface TestResult {
   id: number;
-  campaign_id: number;
+  project_id: number;
   locale: string;
   passed: boolean;
   issues: string[];
@@ -15,7 +15,7 @@ interface TestResult {
   generated_email_id: number;
 }
 
-interface Campaign {
+interface Project {
   id: number;
   name: string;
   templates_count: number;
@@ -25,10 +25,10 @@ interface Campaign {
 const Testing: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [runningTests, setRunningTests] = useState(false);
-  const [selectedCampaign, setSelectedCampaign] = useState('');
+  const [selectedProject, setSelectedProject] = useState('');
   const [showTestForm, setShowTestForm] = useState(false);
   const [selectedResult, setSelectedResult] = useState<TestResult | null>(null);
 
@@ -40,11 +40,11 @@ const Testing: React.FC = () => {
     try {
       setLoading(true);
       
-      // Fetch campaigns
-      const campaignsResponse = await fetch(apiUrl('/campaigns'));
-      if (campaignsResponse.ok) {
-        const campaignsData = await campaignsResponse.json();
-        setCampaigns(campaignsData);
+      // Fetch projects
+      const projectsResponse = await fetch(apiUrl('/projects'));
+      if (projectsResponse.ok) {
+        const projectsData = await projectsResponse.json();
+        setProjects(projectsData);
       }
 
       // TODO: Fetch test results when backend endpoint is available
@@ -60,11 +60,11 @@ const Testing: React.FC = () => {
 
   const runTests = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCampaign) return;
+    if (!selectedProject) return;
 
     setRunningTests(true);
     try {
-      const response = await fetch(apiUrl(`/test/${selectedCampaign}`), {
+      const response = await fetch(apiUrl(`/test/${selectedProject}`), {
         method: 'POST',
       });
 
@@ -76,7 +76,7 @@ const Testing: React.FC = () => {
         const newResults: TestResult[] = [
           {
             id: Date.now(),
-            campaign_id: parseInt(selectedCampaign),
+            project_id: parseInt(selectedProject),
             locale: 'en',
             passed: Math.random() > 0.3,
             issues: Math.random() > 0.3 ? [] : ['Sample issue for testing'],
@@ -85,7 +85,7 @@ const Testing: React.FC = () => {
           },
         ];
         setTestResults(prev => [...newResults, ...prev]);
-        setSelectedCampaign('');
+        setSelectedProject('');
         setShowTestForm(false);
       } else {
         showError('Test Failed', 'Failed to run tests. Please try again.');
@@ -151,11 +151,11 @@ const Testing: React.FC = () => {
       <Modal title="Run Tests" isOpen={showTestForm} onClose={() => setShowTestForm(false)}>
         <form onSubmit={runTests}>
           <FormField
-            label="Campaign"
+            label="Project"
             type="select"
-            value={selectedCampaign}
-            onChange={(e) => setSelectedCampaign(e.target.value)}
-            options={campaigns.map(c => ({ value: c.id.toString(), label: c.name }))}
+            value={selectedProject}
+            onChange={(e) => setSelectedProject(e.target.value)}
+            options={projects.map(p => ({ value: p.id.toString(), label: p.name }))}
             required
           />
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
@@ -187,7 +187,7 @@ const Testing: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No test results</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Run tests on your campaigns to see validation results.</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Run tests on your projects to see validation results.</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -200,7 +200,7 @@ const Testing: React.FC = () => {
                       <div className="ml-4">
                         <div className="flex items-center space-x-2">
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {campaigns.find(c => c.id === result.campaign_id)?.name || 'Unknown Campaign'}
+                            {projects.find(p => p.id === result.project_id)?.name || 'Unknown Project'}
                           </span>
                           <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
                           <span className="text-sm text-gray-500 dark:text-gray-400">{getLanguageName(result.locale)}</span>
@@ -254,9 +254,9 @@ const Testing: React.FC = () => {
         >
           <div className="space-y-4">
             <div>
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white">Campaign</h4>
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white">Project</h4>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                {campaigns.find(c => c.id === selectedResult.campaign_id)?.name || 'Unknown Campaign'}
+                {projects.find(p => p.id === selectedResult.project_id)?.name || 'Unknown Project'}
               </p>
             </div>
             <div>

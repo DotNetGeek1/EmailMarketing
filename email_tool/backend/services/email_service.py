@@ -4,28 +4,28 @@ import subprocess
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from jinja2 import Template as JinjaTemplate
-from ..models import Campaign, GeneratedEmail, LocalizedCopy, Template, Placeholder
+from ..models import Project, GeneratedEmail, LocalizedCopy, Template, Placeholder
 from datetime import datetime
 
 
 class EmailService:
     """Generate localized HTML emails with screenshot thumbnails."""
 
-    async def generate_emails(self, db: AsyncSession, campaign_id: int) -> dict | None:
+    async def generate_emails(self, db: AsyncSession, project_id: int) -> dict | None:
         try:
-            campaign = await db.get(Campaign, campaign_id)
-            if campaign is None:
+            project = await db.get(Project, project_id)
+            if project is None:
                 return None
             
-            # Get templates for this campaign
-            result = await db.execute(select(Template).filter_by(campaign_id=campaign_id))
+            # Get templates for this project
+            result = await db.execute(select(Template).filter_by(project_id=project_id))
             templates = list(result.scalars().all())
             
             if len(templates) == 0:
                 return {'generated': 0, 'emails': []}
             
-            # Get all copy entries for this campaign
-            copy_res = await db.execute(select(LocalizedCopy).filter_by(campaign_id=campaign_id))
+            # Get all copy entries for this project
+            copy_res = await db.execute(select(LocalizedCopy).filter_by(project_id=project_id))
             copies = list(copy_res.scalars().all())
             
             if len(copies) == 0:
@@ -71,7 +71,7 @@ class EmailService:
                         
                         # Create and save the generated email
                         email = GeneratedEmail(
-                            campaign_id=campaign_id,
+                            project_id=project_id,
                             language=locale,  # keep field name for now
                             html_content=html,
                         )

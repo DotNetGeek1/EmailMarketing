@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCampaign } from '../../contexts/CampaignContext';
+import { useProject } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
 import { apiUrl } from '../../config';
 import LoadingSpinner from '../LoadingSpinner';
@@ -13,8 +13,8 @@ interface GeneratedEmail {
   thumbnail_url?: string;
 }
 
-const CampaignEmails: React.FC = () => {
-  const { currentCampaign, templates, copyEntries } = useCampaign();
+const ProjectEmails: React.FC = () => {
+  const { currentProject, templates, copyEntries } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
   const [generating, setGenerating] = useState(false);
   const [generatedEmails, setGeneratedEmails] = useState<GeneratedEmail[]>([]);
@@ -26,7 +26,7 @@ const CampaignEmails: React.FC = () => {
   // Get available locales from copy entries
   const availableLocales = Array.from(new Set(copyEntries.map(entry => entry.locale))).sort();
 
-  if (!currentCampaign) return null;
+  if (!currentProject) return null;
 
   const generateEmails = async () => {
     // Check if templates exist
@@ -51,7 +51,7 @@ const CampaignEmails: React.FC = () => {
     try {
       // Generate emails for each selected locale
       const promises = selectedLocales.map(locale =>
-        fetch(apiUrl(`/generate/${currentCampaign.id}/${locale}`), {
+        fetch(apiUrl(`/generate/${currentProject.id}/${locale}`), {
           method: 'POST',
         })
       );
@@ -111,7 +111,7 @@ const CampaignEmails: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${currentCampaign.name}_${email.locale}.html`;
+    a.download = `${currentProject.name}_${email.locale}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -135,7 +135,7 @@ const CampaignEmails: React.FC = () => {
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Generated Emails</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            View and download emails generated from templates and copy for {currentCampaign.name}
+            View and download emails generated from templates and copy for {currentProject.name}
           </p>
         </div>
         <button
@@ -342,4 +342,4 @@ const CampaignEmails: React.FC = () => {
   );
 };
 
-export default CampaignEmails; 
+export default ProjectEmails; 

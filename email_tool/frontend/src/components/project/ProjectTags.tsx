@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../Modal';
 import LoadingSpinner from '../LoadingSpinner';
-import { Tag } from '../../contexts/CampaignContext';
+import { Tag } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
 import { apiUrl } from '../../config';
 
-interface CampaignTagsProps {
-  campaignId: number;
+interface ProjectTagsProps {
+  projectId: number;
   currentTags: Tag[];
   onTagsUpdate: (tags: Tag[]) => void;
 }
 
-const CampaignTags: React.FC<CampaignTagsProps> = ({ campaignId, currentTags, onTagsUpdate }) => {
+const ProjectTags: React.FC<ProjectTagsProps> = ({ projectId, currentTags, onTagsUpdate }) => {
   const { showSuccess, showError } = useToast();
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,10 +36,10 @@ const CampaignTags: React.FC<CampaignTagsProps> = ({ campaignId, currentTags, on
     }
   };
 
-  const addTagToCampaign = async (tagId: number) => {
+  const addTagToProject = async (tagId: number) => {
     try {
       setLoading(true);
-      const response = await fetch(apiUrl(`/campaigns/${campaignId}/tags/${tagId}`), {
+      const response = await fetch(apiUrl(`/projects/${projectId}/tags/${tagId}`), {
         method: 'POST',
       });
 
@@ -47,24 +47,24 @@ const CampaignTags: React.FC<CampaignTagsProps> = ({ campaignId, currentTags, on
         const addedTag = allTags.find(tag => tag.id === tagId);
         if (addedTag) {
           onTagsUpdate([...currentTags, addedTag]);
-          showSuccess('Tag Added', `${addedTag.name} has been added to the campaign.`);
+          showSuccess('Tag Added', `${addedTag.name} has been added to the project.`);
         }
         setShowAddModal(false);
       } else {
-        showError('Failed to add tag', 'Unable to add tag to campaign. Please try again.');
+        showError('Failed to add tag', 'Unable to add tag to project. Please try again.');
       }
     } catch (error) {
-      console.error('Error adding tag to campaign:', error);
-      showError('Failed to add tag', 'Unable to add tag to campaign. Please try again.');
+      console.error('Error adding tag to project:', error);
+      showError('Failed to add tag', 'Unable to add tag to project. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const removeTagFromCampaign = async (tagId: number) => {
+  const removeTagFromProject = async (tagId: number) => {
     try {
       setLoading(true);
-      const response = await fetch(apiUrl(`/campaigns/${campaignId}/tags/${tagId}`), {
+      const response = await fetch(apiUrl(`/projects/${projectId}/tags/${tagId}`), {
         method: 'DELETE',
       });
 
@@ -72,14 +72,14 @@ const CampaignTags: React.FC<CampaignTagsProps> = ({ campaignId, currentTags, on
         const removedTag = currentTags.find(tag => tag.id === tagId);
         onTagsUpdate(currentTags.filter(tag => tag.id !== tagId));
         if (removedTag) {
-          showSuccess('Tag Removed', `${removedTag.name} has been removed from the campaign.`);
+          showSuccess('Tag Removed', `${removedTag.name} has been removed from the project.`);
         }
       } else {
-        showError('Failed to remove tag', 'Unable to remove tag from campaign. Please try again.');
+        showError('Failed to remove tag', 'Unable to remove tag from project. Please try again.');
       }
     } catch (error) {
-      console.error('Error removing tag from campaign:', error);
-      showError('Failed to remove tag', 'Unable to remove tag from campaign. Please try again.');
+      console.error('Error removing tag from project:', error);
+      showError('Failed to remove tag', 'Unable to remove tag from project. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ const CampaignTags: React.FC<CampaignTagsProps> = ({ campaignId, currentTags, on
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Campaign Tags</h3>
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Project Tags</h3>
         <button
           onClick={() => setShowAddModal(true)}
           disabled={availableTags.length === 0}
@@ -108,7 +108,7 @@ const CampaignTags: React.FC<CampaignTagsProps> = ({ campaignId, currentTags, on
           <svg className="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
           </svg>
-          <p className="text-sm text-gray-500 dark:text-gray-400">No tags assigned to this campaign</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">No tags assigned to this project</p>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -124,7 +124,7 @@ const CampaignTags: React.FC<CampaignTagsProps> = ({ campaignId, currentTags, on
             >
               <span>{tag.name}</span>
               <button
-                onClick={() => removeTagFromCampaign(tag.id)}
+                onClick={() => removeTagFromProject(tag.id)}
                 disabled={loading}
                 className="ml-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:opacity-100"
                 style={{ color: tag.color }}
@@ -142,19 +142,19 @@ const CampaignTags: React.FC<CampaignTagsProps> = ({ campaignId, currentTags, on
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Add Tag to Campaign"
+        title="Add Tag to Project"
       >
         <div className="space-y-4">
           {availableTags.length === 0 ? (
             <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-              All available tags are already assigned to this campaign.
+              All available tags are already assigned to this project.
             </p>
           ) : (
             <div className="space-y-2">
               {availableTags.map((tag) => (
                 <button
                   key={tag.id}
-                  onClick={() => addTagToCampaign(tag.id)}
+                  onClick={() => addTagToProject(tag.id)}
                   disabled={loading}
                   className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
@@ -196,4 +196,4 @@ const CampaignTags: React.FC<CampaignTagsProps> = ({ campaignId, currentTags, on
   );
 };
 
-export default CampaignTags; 
+export default ProjectTags; 

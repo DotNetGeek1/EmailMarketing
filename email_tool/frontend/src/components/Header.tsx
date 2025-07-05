@@ -23,7 +23,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               </svg>
             </button>
             <div className="ml-4 md:ml-0">
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Email Campaign Tool</h1>
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Email Project Tool</h1>
             </div>
           </div>
           

@@ -7,10 +7,10 @@ class Template(Base):
     __tablename__ = 'template'
 
     id = Column(Integer, primary_key=True, index=True)
-    campaign_id = Column(Integer, ForeignKey('campaign.id'))
+    project_id = Column(Integer, ForeignKey('project.id'))
     filename = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    campaign = relationship('Campaign', back_populates='templates')
+    project = relationship('Project', back_populates='templates')
     placeholders = relationship('Placeholder', back_populates='template')

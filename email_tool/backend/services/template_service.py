@@ -1,7 +1,7 @@
 import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from ..models import Campaign, Template, Placeholder
+from ..models import Project, Template, Placeholder
 from .tag_service import TagService
 from typing import Optional
 
@@ -15,15 +15,15 @@ class TemplateService:
     async def upload_template(
         self,
         db: AsyncSession,
-        campaign_id: int,
+        project_id: int,
         filename: str,
         content: str,
     ) -> tuple[Template | None, list[str], list[dict]]:
-        campaign = await db.get(Campaign, campaign_id)
-        if not campaign:
+        project = await db.get(Project, project_id)
+        if not project:
             return None, [], []
         
-        template = Template(campaign_id=campaign_id, filename=filename, content=content)
+        template = Template(project_id=project_id, filename=filename, content=content)
         db.add(template)
         
         # Extract placeholder keys
@@ -56,12 +56,12 @@ class TemplateService:
         result = await db.execute(select(Placeholder.key).filter_by(template_id=template_id))
         return list(result.scalars().all())
 
-    async def get_all_templates(self, db: AsyncSession, campaign_id: Optional[int] = None) -> list[dict]:
-        """Get all templates with campaign information and placeholders, optionally filtered by campaign_id"""
+    async def get_all_templates(self, db: AsyncSession, project_id: Optional[int] = None) -> list[dict]:
+        """Get all templates with project information and placeholders, optionally filtered by project_id"""
         query = select(Template).order_by(Template.created_at.desc())
         
-        if campaign_id is not None:
-            query = query.filter(Template.campaign_id == campaign_id)
+        if project_id is not None:
+            query = query.filter(Template.project_id == project_id)
         
         result = await db.execute(query)
         templates = result.scalars().all()
@@ -73,7 +73,7 @@ class TemplateService:
             placeholders = await self.get_placeholders(db, template_id)
             template_dict = {
                 'id': template_id,
-                'campaign_id': template.campaign_id,
+                'project_id': template.project_id,
                 'filename': template.filename,
                 'content': template.content,
                 'created_at': template.created_at.isoformat(),

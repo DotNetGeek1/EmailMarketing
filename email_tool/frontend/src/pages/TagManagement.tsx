@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
 import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { Tag } from '../contexts/CampaignContext';
+import { Tag } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { apiUrl } from '../config';
 
@@ -210,7 +210,7 @@ const TagManagement: React.FC = () => {
             
             <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
               <span>
-                {tag.campaign_count || 0} campaigns
+                {tag.project_count || 0} projects
               </span>
               <span>
                 {tag.created_at ? new Date(tag.created_at).toLocaleDateString() : 'N/A'}
@@ -231,7 +231,7 @@ const TagManagement: React.FC = () => {
             No tags yet
           </h3>
           <p className="text-gray-500 dark:text-gray-400 mb-4">
-            Create your first tag to start organizing your campaigns
+            Create your first tag to start organizing your projects
           </p>
           <button
             onClick={() => setShowCreateModal(true)}

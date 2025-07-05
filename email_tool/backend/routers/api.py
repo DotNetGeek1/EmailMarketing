@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..data_access.database import get_db
-from ..services.campaign_service import CampaignService
+from ..services.project_service import ProjectService
+from ..services.marketing_group_service import MarketingGroupService
 from ..services.template_service import TemplateService
 from ..services.copy_service import CopyService
 from ..services.email_service import EmailService
@@ -18,7 +19,8 @@ from ..models.copy_comment import CopyComment
 
 router = APIRouter()
 
-campaign_service = CampaignService()
+project_service = ProjectService()
+marketing_group_service = MarketingGroupService()
 template_service = TemplateService()
 copy_service = CopyService()
 email_service = EmailService()
@@ -63,16 +65,54 @@ async def get_customers(db: AsyncSession = Depends(get_db)):
         for c in customers
     ]
 
-@router.post('/campaign')
-async def create_campaign(name: str = Form(...), customer_id: int = Form(None), db: AsyncSession = Depends(get_db)):
+
+@router.get('/marketing-groups')
+async def get_marketing_groups(db: AsyncSession = Depends(get_db)):
+    """Get all marketing groups"""
+    groups = await marketing_group_service.get_all_groups(db)
+    return groups
+
+
+@router.post('/marketing-groups')
+async def create_marketing_group(
+    name: str = Form(...),
+    code: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new marketing group"""
     try:
-        campaign = await campaign_service.create_campaign(db, name, customer_id)
+        # Check if group with this code already exists
+        existing = await marketing_group_service.get_group_by_code(db, code)
+        if existing:
+            raise HTTPException(status_code=400, detail='Marketing group with this code already exists')
+        
+        # Create the group
+        group = await marketing_group_service.create_group(db, name, code)
         return {
-            'id': campaign.id, 
-            'name': campaign.name,
-            'created_at': campaign.created_at.isoformat(),
-            'status': campaign.status,
-            'customer_id': campaign.customer_id,
+            'id': group.id,
+            'name': group.name,
+            'code': group.code,
+            'created_at': group.created_at.isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post('/project')
+async def create_project(
+    name: str = Form(...), 
+    customer_id: int = Form(None), 
+    marketing_group_id: int = Form(None), 
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        project = await project_service.create_project(db, name, customer_id, marketing_group_id)
+        return {
+            'id': project.id, 
+            'name': project.name,
+            'created_at': project.created_at.isoformat(),
+            'status': project.status,
+            'customer_id': project.customer_id,
+            'marketing_group_id': project.marketing_group_id,
             'templates_count': 0,
             'languages_count': 0
         }
@@ -80,25 +120,25 @@ async def create_campaign(name: str = Form(...), customer_id: int = Form(None), 
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put('/campaign/{campaign_id}')
-async def update_campaign(campaign_id: int, name: str = Form(...), db: AsyncSession = Depends(get_db)):
-    campaign = await campaign_service.update_campaign(db, campaign_id, name)
-    if not campaign:
-        raise HTTPException(status_code=404, detail='Campaign not found')
-    return {'id': campaign.id, 'name': campaign.name, 'status': campaign.status}
+@router.put('/project/{project_id}')
+async def update_project(project_id: int, name: str = Form(...), db: AsyncSession = Depends(get_db)):
+    project = await project_service.update_project(db, project_id, name)
+    if not project:
+        raise HTTPException(status_code=404, detail='Project not found')
+    return {'id': project.id, 'name': project.name, 'status': project.status}
 
 
-@router.put('/campaign/{campaign_id}/status')
-async def update_campaign_status(campaign_id: int, status_update: StatusUpdate, db: AsyncSession = Depends(get_db)):
-    campaign = await campaign_service.update_campaign_status(db, campaign_id, status_update.status)
-    if not campaign:
-        raise HTTPException(status_code=404, detail='Campaign not found')
-    return {'id': campaign.id, 'name': campaign.name, 'status': campaign.status}
+@router.put('/project/{project_id}/status')
+async def update_project_status(project_id: int, status_update: StatusUpdate, db: AsyncSession = Depends(get_db)):
+    project = await project_service.update_project_status(db, project_id, status_update.status)
+    if not project:
+        raise HTTPException(status_code=404, detail='Project not found')
+    return {'id': project.id, 'name': project.name, 'status': project.status}
 
 
 @router.post('/template')
 async def upload_template(
-    campaign_id: int = Form(...),
+    project_id: int = Form(...),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
@@ -107,9 +147,9 @@ async def upload_template(
     
     try:
         content = (await file.read()).decode('utf-8')
-        template, keys, created_tags = await template_service.upload_template(db, campaign_id, file.filename, content)
+        template, keys, created_tags = await template_service.upload_template(db, project_id, file.filename, content)
         if not template:
-            raise HTTPException(status_code=404, detail='Campaign not found')
+            raise HTTPException(status_code=404, detail='Project not found')
         
         return {
             'template_id': template.id, 
@@ -127,14 +167,14 @@ async def get_placeholders(template_id: int, db: AsyncSession = Depends(get_db))
     return {'placeholders': keys}
 
 
-@router.get('/copy/{campaign_id}')
-async def get_campaign_copy(campaign_id: int, db: AsyncSession = Depends(get_db)):
-    """Get all copy entries for a campaign"""
-    copies = await copy_service.get_copies(db, campaign_id)
+@router.get('/copy/{project_id}')
+async def get_project_copy(project_id: int, db: AsyncSession = Depends(get_db)):
+    """Get all copy entries for a project"""
+    copies = await copy_service.get_copies(db, project_id)
     return [
         {
             'id': copy.id,
-            'campaign_id': copy.campaign_id,
+            'project_id': copy.project_id,
             'locale': copy.locale,
             'key': copy.key,
             'value': copy.value,
@@ -145,18 +185,18 @@ async def get_campaign_copy(campaign_id: int, db: AsyncSession = Depends(get_db)
     ]
 
 
-@router.post('/copy/{campaign_id}/{locale}')
+@router.post('/copy/{project_id}/{locale}')
 async def submit_copy(
-    campaign_id: int,
+    project_id: int,
     locale: str,
     key: str = Form(...),
     value: str = Form(...),
     status: str = Form('Draft'),
     db: AsyncSession = Depends(get_db),
 ):
-    copy = await copy_service.submit_copy(db, campaign_id, locale, key, value, status)
+    copy = await copy_service.submit_copy(db, project_id, locale, key, value, status)
     if not copy:
-        raise HTTPException(status_code=404, detail='Campaign not found')
+        raise HTTPException(status_code=404, detail='Project not found')
     return {'id': copy.id}
 
 
@@ -168,46 +208,46 @@ async def update_copy_status(copy_id: int, status: str = Form(...), db: AsyncSes
     return {'id': copy_id, 'status': status}
 
 
-@router.delete('/copy/{campaign_id}/{locale}/{key}')
+@router.delete('/copy/{project_id}/{locale}/{key}')
 async def delete_copy(
-    campaign_id: int,
+    project_id: int,
     locale: str,
     key: str,
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a specific copy entry"""
-    success = await copy_service.delete_copy(db, campaign_id, locale, key)
+    success = await copy_service.delete_copy(db, project_id, locale, key)
     if not success:
         raise HTTPException(status_code=404, detail='Copy entry not found')
     return {'message': 'Copy entry deleted successfully'}
 
 
-@router.delete('/copy/{campaign_id}/{locale}')
+@router.delete('/copy/{project_id}/{locale}')
 async def delete_locale_copies(
-    campaign_id: int,
+    project_id: int,
     locale: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete all copy entries for a specific locale in a campaign"""
-    count = await copy_service.delete_copies_for_locale(db, campaign_id, locale)
+    """Delete all copy entries for a specific locale in a project"""
+    count = await copy_service.delete_copies_for_locale(db, project_id, locale)
     return {'message': f'Deleted {count} copy entries for locale {locale}'}
 
 
-@router.post('/generate/{campaign_id}')
-async def generate_emails(campaign_id: int, db: AsyncSession = Depends(get_db)):
-    result = await email_service.generate_emails(db, campaign_id)
+@router.post('/generate/{project_id}')
+async def generate_emails(project_id: int, db: AsyncSession = Depends(get_db)):
+    result = await email_service.generate_emails(db, project_id)
     if result is None:
-        raise HTTPException(status_code=404, detail='Campaign not found')
+        raise HTTPException(status_code=404, detail='Project not found')
     return result
 
 
-@router.post('/test/{campaign_id}')
+@router.post('/test/{project_id}')
 async def run_tests(
-    campaign_id: int, 
+    project_id: int, 
     test_config: Optional[TestConfig] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    count = await test_service.run_tests(db, campaign_id, test_config)
+    count = await test_service.run_tests(db, project_id, test_config.dict() if test_config else None)
     return {'tested': count}
 
 
@@ -254,32 +294,32 @@ async def delete_tag(tag_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail='Tag not found')
     return {'message': 'Tag deleted successfully'}
 
-@router.post('/campaigns/{campaign_id}/tags/{tag_id}')
-async def add_tag_to_campaign(campaign_id: int, tag_id: int, db: AsyncSession = Depends(get_db)):
-    """Add a tag to a campaign"""
-    success = await tag_service.add_tag_to_campaign(db, campaign_id, tag_id)
+@router.post('/projects/{project_id}/tags/{tag_id}')
+async def add_tag_to_project(project_id: int, tag_id: int, db: AsyncSession = Depends(get_db)):
+    """Add a tag to a project"""
+    success = await tag_service.add_tag_to_project(db, project_id, tag_id)
     if not success:
-        raise HTTPException(status_code=400, detail='Failed to add tag to campaign')
-    return {'message': 'Tag added to campaign successfully'}
+        raise HTTPException(status_code=400, detail='Failed to add tag to project')
+    return {'message': 'Tag added to project successfully'}
 
-@router.delete('/campaigns/{campaign_id}/tags/{tag_id}')
-async def remove_tag_from_campaign(campaign_id: int, tag_id: int, db: AsyncSession = Depends(get_db)):
-    """Remove a tag from a campaign"""
-    success = await tag_service.remove_tag_from_campaign(db, campaign_id, tag_id)
+@router.delete('/projects/{project_id}/tags/{tag_id}')
+async def remove_tag_from_project(project_id: int, tag_id: int, db: AsyncSession = Depends(get_db)):
+    """Remove a tag from a project"""
+    success = await tag_service.remove_tag_from_project(db, project_id, tag_id)
     if not success:
-        raise HTTPException(status_code=400, detail='Failed to remove tag from campaign')
-    return {'message': 'Tag removed from campaign successfully'}
+        raise HTTPException(status_code=400, detail='Failed to remove tag from project')
+    return {'message': 'Tag removed from project successfully'}
 
-@router.get('/campaigns')
-async def get_campaigns(customer_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    """Get all campaigns with template and language counts, optionally filtered by customer_id"""
-    campaigns = await campaign_service.get_all_campaigns(db, customer_id=customer_id)
-    return campaigns
+@router.get('/projects')
+async def get_projects(customer_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+    """Get all projects with template and language counts, optionally filtered by customer_id"""
+    projects = await project_service.get_projects(db, customer_id=customer_id)
+    return projects
 
 @router.get('/templates')
-async def get_templates(campaign_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    """Get all templates with campaign information, optionally filtered by campaign_id"""
-    templates = await template_service.get_all_templates(db, campaign_id)
+async def get_templates(project_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+    """Get all templates with project information, optionally filtered by project_id"""
+    templates = await template_service.get_all_templates(db, project_id)
     return templates
 
 @router.delete('/template/{template_id}')
@@ -290,9 +330,9 @@ async def delete_template(template_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail='Template not found')
     return {'message': 'Template deleted successfully'}
 
-@router.get('/emails/{campaign_id}')
-async def get_generated_emails(campaign_id: int, db: AsyncSession = Depends(get_db)):
-    emails = (await db.execute(select(GeneratedEmail).filter_by(campaign_id=campaign_id))).scalars().all()
+@router.get('/emails/{project_id}')
+async def get_generated_emails(project_id: int, db: AsyncSession = Depends(get_db)):
+    emails = (await db.execute(select(GeneratedEmail).filter_by(project_id=project_id))).scalars().all()
     # Compose thumbnail URL
     results = []
     for email in emails:
@@ -301,7 +341,7 @@ async def get_generated_emails(campaign_id: int, db: AsyncSession = Depends(get_
         thumbnail_url = f"/static/screenshots/{screenshot_filename}"
         results.append({
             'id': email.id,
-            'campaign_id': email.campaign_id,
+            'project_id': email.project_id,
             'language': email.language,
             'html_content': email.html_content,
             'generated_at': email.generated_at.isoformat() if email.generated_at else None,

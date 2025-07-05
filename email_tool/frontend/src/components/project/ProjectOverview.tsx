@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useCampaign } from '../../contexts/CampaignContext';
+import { useProject } from '../../contexts/ProjectContext';
 import PlaceholderBadge from '../PlaceholderBadge';
 import { apiUrl } from '../../config';
 
@@ -9,12 +9,12 @@ const statusOptions = [
   { value: 'Sent', label: 'Sent (Read Only)' },
 ];
 
-const CampaignOverview: React.FC = () => {
-  const { currentCampaign, templates, copyEntries, generatedEmails, updateCampaign } = useCampaign();
-  const [status, setStatus] = useState(currentCampaign?.status || 'New');
+const ProjectOverview: React.FC = () => {
+  const { currentProject, templates, copyEntries, generatedEmails, updateProject } = useProject();
+  const [status, setStatus] = useState(currentProject?.status || 'New');
   const [updating, setUpdating] = useState(false);
 
-  if (!currentCampaign) return null;
+  if (!currentProject) return null;
 
   // Calculate copy completion status
   const templateTags = new Set<string>();
@@ -91,14 +91,14 @@ const CampaignOverview: React.FC = () => {
     const newStatus = e.target.value;
     setUpdating(true);
     try {
-      const response = await fetch(apiUrl(`/campaign/${currentCampaign.id}/status`), {
+      const response = await fetch(apiUrl(`/project/${currentProject.id}/status`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
       if (response.ok) {
         setStatus(newStatus);
-        if (updateCampaign) updateCampaign({ ...currentCampaign, status: newStatus });
+        if (updateProject) updateProject({ ...currentProject, status: newStatus });
       }
     } finally {
       setUpdating(false);
@@ -189,23 +189,23 @@ const CampaignOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* Campaign Info */}
+      {/* Project Info */}
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Campaign Information</h2>
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Project Information</h2>
         <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
           <div>
-            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Campaign Name</dt>
-            <dd className="mt-1 text-sm text-gray-900 dark:text-white">{currentCampaign.name}</dd>
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Project Name</dt>
+            <dd className="mt-1 text-sm text-gray-900 dark:text-white">{currentProject.name}</dd>
           </div>
           <div>
             <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created</dt>
             <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-              {new Date(currentCampaign.created_at).toLocaleDateString()}
+              {new Date(currentProject.created_at).toLocaleDateString()}
             </dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Campaign ID</dt>
-            <dd className="mt-1 text-sm text-gray-900 dark:text-white">{currentCampaign.id}</dd>
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Project ID</dt>
+            <dd className="mt-1 text-sm text-gray-900 dark:text-white">{currentProject.id}</dd>
           </div>
           <div>
             <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
@@ -228,10 +228,20 @@ const CampaignOverview: React.FC = () => {
               )}
             </dd>
           </div>
+          {currentProject.marketing_group && (
+            <div>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Marketing Group</dt>
+              <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                  {currentProject.marketing_group.code} - {currentProject.marketing_group.name}
+                </span>
+              </dd>
+            </div>
+          )}
         </dl>
       </div>
     </div>
   );
 };
 
-export default CampaignOverview; 
+export default ProjectOverview; 

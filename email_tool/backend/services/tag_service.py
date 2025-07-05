@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 from typing import Optional
 import random
 from ..models.tag import Tag
-from ..models.campaign_tag import campaign_tags
+from ..models.project_tag import project_tags
 
 class TagService:
     async def create_tag(self, db: AsyncSession, name: str, color: str, description: Optional[str] = None) -> Tag:
@@ -34,32 +34,32 @@ class TagService:
         return tag
 
     async def get_all_tags(self, db: AsyncSession) -> list[dict]:
-        """Get all tags with campaign counts"""
-        # Subquery to count campaigns per tag
-        campaign_count_subquery = select(
-            campaign_tags.c.tag_id,
-            func.count(campaign_tags.c.campaign_id).label('campaign_count')
-        ).group_by(campaign_tags.c.tag_id).subquery()
+        """Get all tags with project counts"""
+        # Subquery to count projects per tag
+        project_count_subquery = select(
+            project_tags.c.tag_id,
+            func.count(project_tags.c.project_id).label('project_count')
+        ).group_by(project_tags.c.tag_id).subquery()
 
-        # Main query with campaign counts
+        # Main query with project counts
         query = select(
             Tag,
-            func.coalesce(campaign_count_subquery.c.campaign_count, 0).label('campaign_count')
-        ).outerjoin(campaign_count_subquery, Tag.id == campaign_count_subquery.c.tag_id)
+            func.coalesce(project_count_subquery.c.project_count, 0).label('project_count')
+        ).outerjoin(project_count_subquery, Tag.id == project_count_subquery.c.tag_id)
 
         result = await db.execute(query)
         tags_with_counts = result.all()
         
         # Convert to list of dictionaries
         tags = []
-        for tag, campaign_count in tags_with_counts:
+        for tag, project_count in tags_with_counts:
             tag_dict = {
                 'id': tag.id,
                 'name': tag.name,
                 'color': tag.color,
                 'description': tag.description,
                 'created_at': tag.created_at.isoformat(),
-                'campaign_count': campaign_count
+                'project_count': project_count
             }
             tags.append(tag_dict)
         
@@ -91,11 +91,11 @@ class TagService:
             return True
         return False
 
-    async def add_tag_to_campaign(self, db: AsyncSession, campaign_id: int, tag_id: int) -> bool:
-        """Add a tag to a campaign"""
+    async def add_tag_to_project(self, db: AsyncSession, project_id: int, tag_id: int) -> bool:
+        """Add a tag to a project"""
         try:
             await db.execute(
-                campaign_tags.insert().values(campaign_id=campaign_id, tag_id=tag_id)
+                project_tags.insert().values(project_id=project_id, tag_id=tag_id)
             )
             await db.commit()
             return True
@@ -103,13 +103,13 @@ class TagService:
             await db.rollback()
             return False
 
-    async def remove_tag_from_campaign(self, db: AsyncSession, campaign_id: int, tag_id: int) -> bool:
-        """Remove a tag from a campaign"""
+    async def remove_tag_from_project(self, db: AsyncSession, project_id: int, tag_id: int) -> bool:
+        """Remove a tag from a project"""
         try:
             await db.execute(
-                campaign_tags.delete().where(
-                    campaign_tags.c.campaign_id == campaign_id,
-                    campaign_tags.c.tag_id == tag_id
+                project_tags.delete().where(
+                    project_tags.c.project_id == project_id,
+                    project_tags.c.tag_id == tag_id
                 )
             )
             await db.commit()

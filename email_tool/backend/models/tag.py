@@ -12,5 +12,5 @@ class Tag(Base):
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # Relationship to campaigns (many-to-many through campaign_tags table)
-    campaigns = relationship('Campaign', secondary='campaign_tags', back_populates='tags') 
+    # Relationship to projects (many-to-many through project_tags table)
+    projects = relationship('Project', secondary='project_tags', back_populates='tags') 

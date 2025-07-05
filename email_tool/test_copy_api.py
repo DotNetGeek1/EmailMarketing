@@ -5,16 +5,16 @@ import json
 def test_copy_submission():
     base_url = "http://localhost:8000"
     
-    # First, create a campaign
-    print("Creating campaign...")
-    campaign_data = {"name": "Test Campaign for Copy"}
-    response = requests.post(f"{base_url}/campaign", data=campaign_data)
+    # First, create a project
+    print("Creating project...")
+    project_data = {"name": "Test Project for Copy"}
+    response = requests.post(f"{base_url}/project", data=project_data)
     if response.status_code == 200:
-        campaign = response.json()
-        campaign_id = campaign['id']
-        print(f"✅ Campaign created: {campaign['name']} (ID: {campaign_id})")
+        project = response.json()
+        project_id = project['id']
+        print(f"✅ Project created: {project['name']} (ID: {project_id})")
     else:
-        print(f"❌ Failed to create campaign: {response.text}")
+        print(f"❌ Failed to create project: {response.text}")
         return
     
     # Test copy submission
@@ -25,7 +25,7 @@ def test_copy_submission():
     }
     
     response = requests.post(
-        f"{base_url}/copy/{campaign_id}/en",
+        f"{base_url}/copy/{project_id}/en",
         data=copy_data
     )
     
@@ -37,7 +37,7 @@ def test_copy_submission():
     
     # Test getting copy entries
     print("\nTesting copy retrieval...")
-    response = requests.get(f"{base_url}/copy/{campaign_id}")
+    response = requests.get(f"{base_url}/copy/{project_id}")
     
     if response.status_code == 200:
         copies = response.json()

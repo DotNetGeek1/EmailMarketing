@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCampaign } from '../../contexts/CampaignContext';
+import { useProject } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
 import Modal from '../Modal';
 import FormField from '../FormField';
@@ -10,7 +10,7 @@ import PlaceholderBadge from '../PlaceholderBadge';
 // Interface for templates in this component
 interface TemplateItem {
   id: number;
-  campaign_id: number;
+  project_id: number;
   filename: string;
   content: string;
   placeholders: string[];
@@ -27,15 +27,15 @@ interface CreatedTag {
 
 interface Template {
   id: number;
-  campaign_id: number;
+  project_id: number;
   filename: string;
   content: string;
   created_at: string;
   placeholders: string[];
 }
 
-const CampaignTemplates: React.FC = () => {
-  const { currentCampaign, templates, setTemplates } = useCampaign();
+const ProjectTemplates: React.FC = () => {
+  const { currentProject, templates, setTemplates } = useProject();
   const { showSuccess, showError, showInfo } = useToast();
   const [loading, setLoading] = useState(true);
   const [showUploadForm, setShowUploadForm] = useState(false);
@@ -45,17 +45,17 @@ const CampaignTemplates: React.FC = () => {
   const [deleteTimeout, setDeleteTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (currentCampaign) {
+    if (currentProject) {
       fetchTemplates();
     }
-  }, [currentCampaign]);
+  }, [currentProject]);
 
   const fetchTemplates = async () => {
-    if (!currentCampaign) return;
+    if (!currentProject) return;
     
     try {
       setLoading(true);
-      const response = await fetch(apiUrl(`/templates?campaign_id=${currentCampaign.id}`));
+      const response = await fetch(apiUrl(`/templates?project_id=${currentProject.id}`));
       if (response.ok) {
         const data = await response.json();
         setTemplates(data);
@@ -82,13 +82,13 @@ const CampaignTemplates: React.FC = () => {
 
   const uploadTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile || !currentCampaign) return;
+    if (!selectedFile || !currentProject) return;
     
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('campaign_id', currentCampaign.id.toString());
+      formData.append('project_id', currentProject.id.toString());
 
       const response = await fetch(apiUrl('/template'), {
         method: 'POST',
@@ -144,7 +144,7 @@ const CampaignTemplates: React.FC = () => {
     }
   };
 
-  if (!currentCampaign) return null;
+  if (!currentProject) return null;
 
   return (
     <div className="space-y-6">
@@ -152,7 +152,7 @@ const CampaignTemplates: React.FC = () => {
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Templates</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage HTML templates for {currentCampaign.name}
+            Manage HTML templates for {currentProject.name}
           </p>
         </div>
         <button
@@ -262,4 +262,4 @@ const CampaignTemplates: React.FC = () => {
   );
 };
 
-export default CampaignTemplates; 
+export default ProjectTemplates; 

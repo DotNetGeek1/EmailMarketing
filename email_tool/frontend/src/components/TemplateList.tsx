@@ -3,27 +3,27 @@ import PlaceholderBadge from './PlaceholderBadge';
 
 export interface Template {
   id: number;
-  campaign_id: number;
+  project_id: number;
   filename: string;
   content: string;
   created_at: string;
   placeholders: string[];
 }
 
-interface Campaign {
+interface Project {
   id: number;
   name: string;
 }
 
 interface TemplateListProps {
   templates: Template[];
-  campaigns: Campaign[];
+  projects: Project[];
   onPreview?: (template: Template) => void;
   onEdit?: (id: number) => void;
   onDelete?: (id: number) => void;
 }
 
-const TemplateList: React.FC<TemplateListProps> = ({ templates, campaigns, onPreview, onEdit, onDelete }) => {
+const TemplateList: React.FC<TemplateListProps> = ({ templates, projects, onPreview, onEdit, onDelete }) => {
   if (templates.length === 0) {
     return (
       <div className="text-center py-12">
@@ -53,7 +53,7 @@ const TemplateList: React.FC<TemplateListProps> = ({ templates, campaigns, onPre
                   <div className="ml-4">
                     <div className="text-sm font-medium text-gray-900 dark:text-white">{template.filename}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Campaign: {campaigns.find(c => c.id === template.campaign_id)?.name || 'Unknown'}
+                      Project: {projects.find(p => p.id === template.project_id)?.name || 'Unknown'}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       Created {new Date(template.created_at).toLocaleDateString()}

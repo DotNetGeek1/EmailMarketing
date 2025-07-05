@@ -10,10 +10,10 @@ import PlaceholderBadge from '../components/PlaceholderBadge';
 const Templates: React.FC = () => {
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [campaigns, setCampaigns] = useState<Array<{ id: number; name: string }>>([]);
+  const [projects, setProjects] = useState<Array<{ id: number; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [showUploadForm, setShowUploadForm] = useState(false);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<number | ''>('');
+  const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
@@ -22,7 +22,7 @@ const Templates: React.FC = () => {
 
   useEffect(() => {
     fetchTemplates();
-    fetchCampaigns();
+    fetchProjects();
   }, []);
 
   const fetchTemplates = async () => {
@@ -44,15 +44,15 @@ const Templates: React.FC = () => {
     }
   };
 
-  const fetchCampaigns = async () => {
+  const fetchProjects = async () => {
     try {
-      const response = await fetch(apiUrl('/campaigns'));
+      const response = await fetch(apiUrl('/projects'));
       if (response.ok) {
         const data = await response.json();
-        setCampaigns(data);
+        setProjects(data);
       }
     } catch (error) {
-      console.error('Error fetching campaigns:', error);
+      console.error('Error fetching projects:', error);
     }
   };
 
@@ -67,13 +67,13 @@ const Templates: React.FC = () => {
 
   const uploadTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile || !selectedCampaignId) return;
+    if (!selectedFile || !selectedProjectId) return;
     
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('campaign_id', selectedCampaignId.toString());
+      formData.append('project_id', selectedProjectId.toString());
 
       const response = await fetch(apiUrl('/template'), {
         method: 'POST',
@@ -84,7 +84,7 @@ const Templates: React.FC = () => {
         const result = await response.json();
         setTemplates(prev => [result, ...prev]);
         setSelectedFile(null);
-        setSelectedCampaignId('');
+        setSelectedProjectId('');
         setShowUploadForm(false);
         showSuccess('Template Uploaded', 'Template has been uploaded successfully.');
       } else {
@@ -145,11 +145,11 @@ const Templates: React.FC = () => {
       <Modal title="Upload HTML Template" isOpen={showUploadForm} onClose={() => setShowUploadForm(false)}>
         <form onSubmit={uploadTemplate}>
           <FormField
-            label="Campaign"
+            label="Project"
             type="select"
-                         value={selectedCampaignId.toString()}
-             onChange={(e) => setSelectedCampaignId(e.target.value ? parseInt(e.target.value) : '')}
-            options={campaigns.map(c => ({ value: c.id.toString(), label: c.name }))}
+            value={selectedProjectId.toString()}
+            onChange={(e) => setSelectedProjectId(e.target.value ? parseInt(e.target.value) : '')}
+            options={projects.map(p => ({ value: p.id.toString(), label: p.name }))}
             required
           />
           <FormField
@@ -186,7 +186,7 @@ const Templates: React.FC = () => {
       ) : (
         <TemplateList
           templates={templates}
-          campaigns={campaigns}
+          projects={projects}
           onPreview={setPreviewTemplate}
           onDelete={deleteTemplate}
         />

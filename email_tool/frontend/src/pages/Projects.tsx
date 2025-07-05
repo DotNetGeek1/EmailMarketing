@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useCampaign } from '../contexts/CampaignContext';
+import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
-import CampaignList, { Campaign } from '../components/CampaignList';
+import ProjectList, { Project } from '../components/ProjectList';
 import { apiUrl } from '../config';
 import { useCustomer } from '../contexts/CustomerContext';
 
-const Campaigns: React.FC = () => {
-  const { setCurrentCampaign } = useCampaign();
+const Projects: React.FC = () => {
+  const { setCurrentProject } = useProject();
   const { showSuccess, showError, showInfo } = useToast();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newCampaignName, setNewCampaignName] = useState('');
+  const [newProjectName, setNewProjectName] = useState('');
   const [creating, setCreating] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [deleteTimeout, setDeleteTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -23,10 +23,13 @@ const Campaigns: React.FC = () => {
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [marketingGroups, setMarketingGroups] = useState<{id: number, name: string, code: string}[]>([]);
+  const [selectedMarketingGroup, setSelectedMarketingGroup] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchCampaigns();
+    fetchProjects();
     fetchCustomers();
+    fetchMarketingGroups();
   }, []);
 
   const fetchCustomers = async () => {
@@ -38,6 +41,18 @@ const Campaigns: React.FC = () => {
       }
     } catch (error) {
       setCustomers([]);
+    }
+  };
+
+  const fetchMarketingGroups = async () => {
+    try {
+      const response = await fetch(apiUrl('/marketing-groups'));
+      if (response.ok) {
+        const data = await response.json();
+        setMarketingGroups(data);
+      }
+    } catch (error) {
+      setMarketingGroups([]);
     }
   };
 
@@ -68,62 +83,68 @@ const Campaigns: React.FC = () => {
     }
   };
 
-  const createCampaign = async (e: React.FormEvent) => {
+  const createProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCampaignName.trim() || !selectedCustomer) return;
+    if (!newProjectName.trim() || !selectedCustomer) return;
     setCreating(true);
     try {
-      const response = await fetch(apiUrl('/campaign'), {
+      let body = `name=${encodeURIComponent(newProjectName)}&customer_id=${selectedCustomer}`;
+      if (selectedMarketingGroup) {
+        body += `&marketing_group_id=${selectedMarketingGroup}`;
+      }
+      
+      const response = await fetch(apiUrl('/project'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `name=${encodeURIComponent(newCampaignName)}&customer_id=${selectedCustomer}`,
+        body: body,
       });
       if (response.ok) {
-        const newCampaign = await response.json();
-        setCampaigns(prev => [newCampaign, ...prev]);
-        setNewCampaignName('');
+        const newProject = await response.json();
+        setProjects(prev => [newProject, ...prev]);
+        setNewProjectName('');
+        setSelectedMarketingGroup(null);
         setShowCreateForm(false);
         // Show success toast
-        showSuccess('Campaign Created', `${newCampaign.name} has been created successfully.`);
-        // Automatically open the new campaign
-        openCampaign(newCampaign);
+        showSuccess('Project Created', `${newProject.name} has been created successfully.`);
+        // Automatically open the new project
+        openProject(newProject);
       } else {
-        throw new Error('Failed to create campaign');
+        throw new Error('Failed to create project');
       }
     } catch (error) {
-      showError('Creation Failed', 'Failed to create campaign. Please try again.');
+      showError('Creation Failed', 'Failed to create project. Please try again.');
     } finally {
       setCreating(false);
     }
   };
 
-  const fetchCampaigns = async () => {
+  const fetchProjects = async () => {
     if (!selectedCustomer) return;
     try {
       setLoading(true);
-      const response = await fetch(apiUrl(`/campaigns?customer_id=${selectedCustomer}`));
+      const response = await fetch(apiUrl(`/projects?customer_id=${selectedCustomer}`));
       if (response.ok) {
         const data = await response.json();
-        setCampaigns(data);
+        setProjects(data);
       } else {
-        setCampaigns([]);
+        setProjects([]);
       }
     } catch (error) {
-      setCampaigns([]);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const openCampaign = (campaign: Campaign) => {
-    setCurrentCampaign(campaign);
-    // Navigate to campaign detail page
-    window.history.pushState({}, '', `/campaign/${campaign.id}`);
+  const openProject = (project: Project) => {
+    setCurrentProject(project);
+    // Navigate to project detail page
+    window.history.pushState({}, '', `/project/${project.id}`);
     // Trigger a custom event to notify App.tsx to change the page
-    window.dispatchEvent(new CustomEvent('navigate', { detail: 'campaign-detail' }));
+    window.dispatchEvent(new CustomEvent('navigate', { detail: 'project-detail' }));
   };
 
-  const deleteCampaign = async (id: number) => {
+  const deleteProject = async (id: number) => {
     if (pendingDeleteId !== id) {
       setPendingDeleteId(id);
       showInfo('Confirm Delete', 'Click delete again to confirm.');
@@ -134,18 +155,18 @@ const Campaigns: React.FC = () => {
     setPendingDeleteId(null);
     if (deleteTimeout) clearTimeout(deleteTimeout);
     try {
-      const response = await fetch(apiUrl(`/campaign/${id}`), {
+      const response = await fetch(apiUrl(`/project/${id}`), {
         method: 'DELETE',
       });
       if (response.ok) {
-        setCampaigns(prev => prev.filter(campaign => campaign.id !== id));
-        showSuccess('Campaign Deleted', 'Campaign has been deleted successfully.');
+        setProjects(prev => prev.filter(project => project.id !== id));
+        showSuccess('Project Deleted', 'Project has been deleted successfully.');
       } else {
-        showError('Deletion Failed', 'Failed to delete campaign. Please try again.');
+        showError('Deletion Failed', 'Failed to delete project. Please try again.');
       }
     } catch (error) {
-      console.error('Error deleting campaign:', error);
-      showError('Deletion Failed', 'Failed to delete campaign. Please try again.');
+      console.error('Error deleting project:', error);
+      showError('Deletion Failed', 'Failed to delete project. Please try again.');
     }
   };
 
@@ -153,8 +174,8 @@ const Campaigns: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Campaigns</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage your email campaigns and their associated templates.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Projects</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage your email projects and their associated templates.</p>
         </div>
         <button
           onClick={() => setShowCreateForm(true)}
@@ -163,18 +184,18 @@ const Campaigns: React.FC = () => {
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>
-          Create Campaign
+          Create Project
         </button>
       </div>
 
-      <Modal title="Create New Campaign" isOpen={showCreateForm} onClose={() => setShowCreateForm(false)}>
-        <form onSubmit={createCampaign}>
+      <Modal title="Create New Project" isOpen={showCreateForm} onClose={() => setShowCreateForm(false)}>
+        <form onSubmit={createProject}>
           <FormField
-            label="Campaign Name"
-            value={newCampaignName}
-            onChange={(e) => setNewCampaignName(e.target.value)}
+            label="Project Name"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
             required
-            placeholder="Enter campaign name"
+            placeholder="Enter project name"
           />
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer</label>
@@ -192,6 +213,21 @@ const Campaigns: React.FC = () => {
               </select>
               <button type="button" onClick={() => setShowNewCustomer(true)} className="text-xs text-blue-600 hover:underline">New Customer</button>
             </div>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marketing Group (Optional)</label>
+            <select
+              value={selectedMarketingGroup || ''}
+              onChange={e => setSelectedMarketingGroup(Number(e.target.value) || null)}
+              className="border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900"
+            >
+              <option value="">Select marketing group...</option>
+              {marketingGroups.map(group => (
+                <option key={group.id} value={group.id}>{group.name} ({group.code})</option>
+              ))}
+            </select>
+          </div>
             {showNewCustomer && (
               <form onSubmit={createCustomer} className="mt-2 flex gap-2">
                 <input
@@ -206,7 +242,6 @@ const Campaigns: React.FC = () => {
                 <button type="button" onClick={() => setShowNewCustomer(false)} className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 rounded">Cancel</button>
               </form>
             )}
-          </div>
           <div className="flex justify-end space-x-3">
             <button
               type="button"
@@ -229,14 +264,14 @@ const Campaigns: React.FC = () => {
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <CampaignList
-          campaigns={campaigns}
-          onDelete={deleteCampaign}
-          onOpen={openCampaign}
+        <ProjectList
+          projects={projects}
+          onDelete={deleteProject}
+          onOpen={openProject}
         />
       )}
     </div>
   );
 };
 
-export default Campaigns; 
+export default Projects; 

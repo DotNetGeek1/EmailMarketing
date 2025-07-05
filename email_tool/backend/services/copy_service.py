@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from ..models import Campaign, LocalizedCopy
+from ..models import Project, LocalizedCopy
 
 
 class CopyService:
@@ -9,21 +9,21 @@ class CopyService:
     async def submit_copy(
         self,
         db: AsyncSession,
-        campaign_id: int,
+        project_id: int,
         locale: str,
         key: str,
         value: str,
         status: str = 'Draft',
     ) -> LocalizedCopy | None:
         """Submit or update a copy entry (upsert operation)"""
-        campaign = await db.get(Campaign, campaign_id)
-        if not campaign:
+        project = await db.get(Project, project_id)
+        if not project:
             return None
         
         # Check if copy entry already exists
         existing_copy = await db.execute(
             select(LocalizedCopy).filter_by(
-                campaign_id=campaign_id,
+                project_id=project_id,
                 locale=locale,
                 key=key
             )
@@ -40,7 +40,7 @@ class CopyService:
         else:
             # Create new entry
             copy = LocalizedCopy(
-                campaign_id=campaign_id,
+                project_id=project_id,
                 locale=locale,
                 key=key,
                 value=value,
@@ -67,14 +67,14 @@ class CopyService:
     async def delete_copy(
         self,
         db: AsyncSession,
-        campaign_id: int,
+        project_id: int,
         locale: str,
         key: str,
     ) -> bool:
         """Delete a specific copy entry"""
         result = await db.execute(
             delete(LocalizedCopy).filter_by(
-                campaign_id=campaign_id,
+                project_id=project_id,
                 locale=locale,
                 key=key
             )
@@ -85,36 +85,36 @@ class CopyService:
     async def delete_copies_for_locale(
         self,
         db: AsyncSession,
-        campaign_id: int,
+        project_id: int,
         locale: str,
     ) -> int:
-        """Delete all copy entries for a specific locale in a campaign"""
+        """Delete all copy entries for a specific locale in a project"""
         result = await db.execute(
             delete(LocalizedCopy).filter_by(
-                campaign_id=campaign_id,
+                project_id=project_id,
                 locale=locale
             )
         )
         await db.commit()
         return result.rowcount
 
-    async def get_copies(self, db: AsyncSession, campaign_id: int) -> list[LocalizedCopy]:
-        """Get all copy entries for a campaign"""
+    async def get_copies(self, db: AsyncSession, project_id: int) -> list[LocalizedCopy]:
+        """Get all copy entries for a project"""
         result = await db.execute(
-            select(LocalizedCopy).filter_by(campaign_id=campaign_id)
+            select(LocalizedCopy).filter_by(project_id=project_id)
         )
         return list(result.scalars().all())
 
     async def get_copies_by_locale(
         self, 
         db: AsyncSession, 
-        campaign_id: int, 
+        project_id: int, 
         locale: str
     ) -> list[LocalizedCopy]:
-        """Get all copy entries for a specific locale in a campaign"""
+        """Get all copy entries for a specific locale in a project"""
         result = await db.execute(
             select(LocalizedCopy).filter_by(
-                campaign_id=campaign_id,
+                project_id=project_id,
                 locale=locale
             )
         )
