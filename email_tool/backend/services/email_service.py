@@ -1,6 +1,6 @@
 import os
 import uuid
-import subprocess
+from email_tool.playwright.test_runner import screenshot
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from jinja2 import Template as JinjaTemplate
@@ -89,20 +89,14 @@ class EmailService:
 
                         # --- Screenshot logic ---
                         guid = str(uuid.uuid4())
-                        html_temp_path = f"/tmp/{guid}.html" if os.name != 'nt' else f"C:\\Windows\\Temp\\{guid}.html"
                         screenshot_filename = f"{guid}.png"
-                        screenshot_path = os.path.join("email_tool/backend/static/screenshots", screenshot_filename)
+                        screenshot_path = os.path.join(
+                            "email_tool/backend/static/screenshots",
+                            screenshot_filename,
+                        )
                         screenshot_url = f"/static/screenshots/{screenshot_filename}"
-                        # Write HTML to temp file
-                        with open(html_temp_path, 'w', encoding='utf-8') as f:
-                            f.write(html)
-                        # Call Playwright runner to generate screenshot
-                        subprocess.run([
-                            'python', 'email_tool/playwright/test_runner.py',
-                            html_temp_path, 'screenshot', screenshot_path
-                        ], check=True)
-                        # Clean up temp HTML file
-                        os.remove(html_temp_path)
+                        # Generate screenshot using Playwright
+                        await screenshot(html, screenshot_path)
                         # --- End screenshot logic ---
                         
                         # Add to our result list
@@ -116,7 +110,9 @@ class EmailService:
                         generated_count += 1
                         
                     except Exception as e:
-                        print(f"Error rendering template for locale {locale}: {e}")
+                        print(
+                            f"Error rendering template or generating screenshot for locale {locale}: {e}"
+                        )
                         continue
             
             await db.commit()
