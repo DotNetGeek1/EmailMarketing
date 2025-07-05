@@ -246,7 +246,9 @@ class TestBuilderService:
             logs.append(f"Temporary HTML file created: {temp_html_path}")
 
             # Compute absolute screenshots directory
-            screenshots_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../static/screenshots'))
+            screenshots_dir = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), 'static/screenshots')
+            )
             os.makedirs(screenshots_dir, exist_ok=True)
 
             # Run test using Playwright directly

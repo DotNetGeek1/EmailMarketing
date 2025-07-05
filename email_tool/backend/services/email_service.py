@@ -91,7 +91,9 @@ class EmailService:
                         guid = str(uuid.uuid4())
                         screenshot_filename = f"{guid}.png"
                         screenshot_path = os.path.join(
-                            "email_tool/backend/static/screenshots",
+
+                            Path(__file__).resolve().parent / 'static' / 'screenshots',
+
                             screenshot_filename,
                         )
                         screenshot_url = f"/static/screenshots/{screenshot_filename}"
