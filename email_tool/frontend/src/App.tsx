@@ -3,7 +3,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { CustomerProvider, useCustomer } from './contexts/CustomerContext';
-import CustomerSelector from './pages/CustomerSelector';
+import LandingPage from './pages/LandingPage';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
@@ -31,7 +31,7 @@ const MainApp: React.FC = () => {
   }, []);
 
   if (!selectedCustomer) {
-    return <CustomerSelector />;
+    return <LandingPage />;
   }
 
   const renderPage = () => {
