@@ -12,7 +12,8 @@ from ..data_access.placeholder_repository import PlaceholderRepository
 
 class TemplateRenderService:
     def __init__(self):
-        self.screenshots_dir = Path("static/screenshots")
+        # Store screenshots alongside backend static assets
+        self.screenshots_dir = Path(__file__).resolve().parent / 'static' / 'screenshots'
         self.screenshots_dir.mkdir(parents=True, exist_ok=True)
         self.template_repository = TemplateRepository()
         self.placeholder_repository = PlaceholderRepository()

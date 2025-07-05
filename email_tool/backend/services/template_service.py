@@ -70,7 +70,8 @@ class TemplateService:
         
         # Convert to list of dictionaries with placeholders
         template_list = []
-        screenshots_dir = Path("static/screenshots")
+        # Locate screenshots in the backend static directory
+        screenshots_dir = Path(__file__).resolve().parent / 'static' / 'screenshots'
         
         for template in templates:
             template_id = getattr(template, 'id')

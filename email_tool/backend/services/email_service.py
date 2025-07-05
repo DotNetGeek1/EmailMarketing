@@ -91,7 +91,10 @@ class EmailService:
                         guid = str(uuid.uuid4())
                         html_temp_path = f"/tmp/{guid}.html" if os.name != 'nt' else f"C:\\Windows\\Temp\\{guid}.html"
                         screenshot_filename = f"{guid}.png"
-                        screenshot_path = os.path.join("email_tool/backend/static/screenshots", screenshot_filename)
+                        screenshot_path = os.path.join(
+                            Path(__file__).resolve().parent / 'static' / 'screenshots',
+                            screenshot_filename,
+                        )
                         screenshot_url = f"/static/screenshots/{screenshot_filename}"
                         # Write HTML to temp file
                         with open(html_temp_path, 'w', encoding='utf-8') as f:

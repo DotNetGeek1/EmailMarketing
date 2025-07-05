@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from .data_access.database import init_db, get_db
 from .routers import api
 from .services.marketing_group_service import MarketingGroupService
@@ -27,7 +28,13 @@ app.add_middleware(
 )
 
 # Serve static files (screenshots)
-app.mount("/static", StaticFiles(directory="email_tool/backend/static"), name="static")
+static_dir = Path(__file__).resolve().parent / "services" / "static"
+static_dir.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/static",
+    StaticFiles(directory=static_dir),
+    name="static",
+)
 
 @app.on_event("startup")
 async def startup_event():
