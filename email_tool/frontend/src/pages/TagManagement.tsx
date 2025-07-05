@@ -157,7 +157,7 @@ const TagManagement: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tag Management</h1>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+          className="bg-brand-accent hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -170,7 +170,7 @@ const TagManagement: React.FC = () => {
         {tags.map((tag) => (
           <div
             key={tag.id}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700"
+            className="bg-brand-panel border border-brand-dark rounded-lg shadow p-6 text-[#f4f4f4] transition-colors duration-200"
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -235,7 +235,7 @@ const TagManagement: React.FC = () => {
           </p>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            className="bg-brand-accent hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Create Tag
           </button>
@@ -298,7 +298,7 @@ const TagManagement: React.FC = () => {
             <button
               onClick={handleCreateTag}
               disabled={!formData.name.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors"
+              className="bg-brand-accent hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors"
             >
               Create Tag
             </button>
@@ -362,7 +362,7 @@ const TagManagement: React.FC = () => {
             <button
               onClick={handleEditTag}
               disabled={!formData.name.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors"
+              className="bg-brand-accent hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors"
             >
               Update Tag
             </button>

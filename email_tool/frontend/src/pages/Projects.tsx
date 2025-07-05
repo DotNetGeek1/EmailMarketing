@@ -179,7 +179,7 @@ const Projects: React.FC = () => {
         </div>
         <button
           onClick={() => setShowCreateForm(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          className="bg-brand-accent hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow transition"
         >
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -204,14 +204,14 @@ const Projects: React.FC = () => {
                 value={selectedCustomer || ''}
                 onChange={e => setSelectedCustomer(Number(e.target.value))}
                 required
-                className="border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900"
+                className="bg-brand-panel border border-brand-dark rounded px-2 py-1 text-sm text-[#f4f4f4]"
               >
                 <option value="" disabled>Select customer...</option>
                 {customers.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
-              <button type="button" onClick={() => setShowNewCustomer(true)} className="text-xs text-blue-600 hover:underline">New Customer</button>
+              <button type="button" onClick={() => setShowNewCustomer(true)} className="text-xs text-brand-accent hover:underline">New Customer</button>
             </div>
           </div>
           
@@ -220,7 +220,7 @@ const Projects: React.FC = () => {
             <select
               value={selectedMarketingGroup || ''}
               onChange={e => setSelectedMarketingGroup(Number(e.target.value) || null)}
-              className="border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900"
+              className="bg-brand-panel border border-brand-dark rounded px-2 py-1 text-sm text-[#f4f4f4]"
             >
               <option value="">Select marketing group...</option>
               {marketingGroups.map(group => (
@@ -235,10 +235,10 @@ const Projects: React.FC = () => {
                   value={newCustomerName}
                   onChange={e => setNewCustomerName(e.target.value)}
                   placeholder="Customer name"
-                  className="border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900"
+                  className="bg-brand-panel border border-brand-dark rounded px-2 py-1 text-sm text-[#f4f4f4]"
                   required
                 />
-                <button type="submit" disabled={creatingCustomer} className="px-2 py-1 text-xs bg-blue-600 text-white rounded">{creatingCustomer ? 'Creating...' : 'Add'}</button>
+                <button type="submit" disabled={creatingCustomer} className="px-2 py-1 text-xs bg-brand-accent text-white rounded">{creatingCustomer ? 'Creating...' : 'Add'}</button>
                 <button type="button" onClick={() => setShowNewCustomer(false)} className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 rounded">Cancel</button>
               </form>
             )}
@@ -253,7 +253,7 @@ const Projects: React.FC = () => {
             <button
               type="submit"
               disabled={creating}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-accent border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
             >
               {creating ? 'Creating...' : 'Create'}
             </button>

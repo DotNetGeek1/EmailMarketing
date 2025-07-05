@@ -50,32 +50,32 @@ const Toast: React.FC<ToastProps> = ({ id, type, title, message, duration = 5000
   const getColors = () => {
     switch (type) {
       case 'success':
-        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200';
+        return 'bg-brand-panel border border-brand-dark rounded-lg shadow p-4 text-[#f4f4f4]';
       case 'error':
-        return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200';
+        return 'bg-brand-panel border border-brand-dark rounded-lg shadow p-4 text-[#f4f4f4]';
       case 'warning':
-        return 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200';
+        return 'bg-brand-panel border border-brand-dark rounded-lg shadow p-4 text-[#f4f4f4]';
       case 'info':
-        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200';
+        return 'bg-brand-panel border border-brand-dark rounded-lg shadow p-4 text-[#f4f4f4]';
     }
   };
 
   const getIconColor = () => {
     switch (type) {
       case 'success':
-        return 'text-green-400 dark:text-green-300';
+        return 'text-brand-accent';
       case 'error':
-        return 'text-red-400 dark:text-red-300';
+        return 'text-brand-accent';
       case 'warning':
-        return 'text-yellow-400 dark:text-yellow-300';
+        return 'text-brand-accent';
       case 'info':
-        return 'text-blue-400 dark:text-blue-300';
+        return 'text-brand-accent';
     }
   };
 
   return (
     <div 
-      className={`max-w-sm w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg pointer-events-auto border ${getColors()}`}
+      className={`max-w-sm w-full bg-brand-panel border border-brand-dark rounded-lg pointer-events-auto ${getColors()}`}
       style={{
         animation: 'slideIn 0.3s ease-out',
         transform: 'translateX(0)',

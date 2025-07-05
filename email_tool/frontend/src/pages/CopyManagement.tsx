@@ -257,7 +257,7 @@ const CopyManagement: React.FC = () => {
         </form>
       </Modal>
 
-      <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
+      <div className="bg-brand-panel border border-brand-dark rounded-lg shadow p-6 text-[#f4f4f4] transition-colors duration-200">
         {copyEntries.length === 0 ? (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">

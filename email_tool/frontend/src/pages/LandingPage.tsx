@@ -68,17 +68,18 @@ const LandingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-950 text-white flex flex-col items-center justify-center p-8">
-      <div className={`max-w-xl text-center transition-opacity duration-700 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="flex items-center justify-center mb-4">
-          <svg className="w-12 h-12 text-blue-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+    <div className="min-h-screen bg-gradient-to-b from-brand-dark to-brand-panel text-[#f4f4f4] flex flex-col items-center justify-center p-8">
+      <div className={`max-w-xl w-full rounded-2xl shadow-xl bg-brand-panel border border-brand-dark p-10 text-center animate-fade-in ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="flex items-center justify-center mb-6">
+          <svg className="w-14 h-14 text-brand-accent mr-3" fill="currentColor" viewBox="0 0 20 20">
             <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
             <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
           </svg>
-          <h1 className="text-4xl font-bold">Welcome to the Email Campaign Tool</h1>
+          <span className="text-3xl font-extrabold tracking-tight">1973 Email Tool</span>
         </div>
-        <p className="text-gray-400 mb-6">
-          Effortlessly manage multilingual email campaigns with smart testing, template control, and AI assistance.
+        <h1 className="text-2xl font-bold mb-2">Welcome to the Email Campaign Tool</h1>
+        <p className="text-gray-400 mb-8">
+          Data-driven, automated, and measurable email marketing for modern brands.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
@@ -89,14 +90,14 @@ const LandingPage: React.FC = () => {
               {customers.length > 0 && (
                 <button 
                   onClick={() => setShowNew(false)}
-                  className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-medium transition-colors duration-200"
+                  className="bg-brand-accent hover:bg-blue-700 px-6 py-3 rounded-xl font-semibold shadow transition text-white"
                 >
                   Select a Customer
                 </button>
               )}
               <button 
                 onClick={() => setShowNew(true)}
-                className="bg-gray-700 hover:bg-gray-800 px-6 py-3 rounded-xl font-medium transition-colors duration-200"
+                className="bg-brand-dark hover:bg-brand-panel px-6 py-3 rounded-xl font-semibold border border-brand-accent text-brand-accent transition"
               >
                 + New Customer
               </button>
@@ -105,7 +106,7 @@ const LandingPage: React.FC = () => {
         </div>
 
         {showNew && (
-          <div className="mb-8 p-6 bg-gray-800 rounded-xl">
+          <div className="mb-8 p-6 bg-[#23272a] rounded-xl border border-brand-dark">
             <h3 className="text-lg font-semibold mb-4">Create New Customer</h3>
             <form onSubmit={createCustomer} className="flex flex-col sm:flex-row gap-3">
               <input
@@ -113,7 +114,7 @@ const LandingPage: React.FC = () => {
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="Customer name"
-                className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-2 bg-brand-dark border border-brand-panel rounded-lg text-[#f4f4f4] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent"
                 required
                 autoFocus
               />
@@ -121,14 +122,14 @@ const LandingPage: React.FC = () => {
                 <button 
                   type="submit" 
                   disabled={creating} 
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 disabled:opacity-50"
+                  className="px-6 py-2 bg-brand-accent hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 disabled:opacity-50"
                 >
                   {creating ? 'Creating...' : 'Create'}
                 </button>
                 <button 
                   type="button" 
                   onClick={() => setShowNew(false)} 
-                  className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors duration-200"
+                  className="px-6 py-2 bg-brand-panel hover:bg-brand-dark text-[#f4f4f4] rounded-lg font-medium border border-brand-accent transition-colors duration-200"
                 >
                   Cancel
                 </button>
@@ -138,7 +139,7 @@ const LandingPage: React.FC = () => {
         )}
 
         {!showNew && customers.length > 0 && (
-          <div className="mt-10 border-t border-gray-800 pt-6 text-left">
+          <div className="mt-10 border-t border-brand-dark pt-6 text-left">
             <h3 className="text-lg font-semibold mb-3">Recently Used</h3>
             <ul className="text-gray-300 space-y-2">
               {customers.slice(0, 3).map(customer => (

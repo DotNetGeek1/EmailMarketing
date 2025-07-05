@@ -133,7 +133,7 @@ const Templates: React.FC = () => {
         </div>
         <button
           onClick={() => setShowUploadForm(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+          className="bg-brand-accent hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow transition"
         >
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -166,14 +166,14 @@ const Templates: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowUploadForm(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+              className="bg-brand-panel border border-brand-dark text-[#f4f4f4] px-4 py-2 rounded-lg font-semibold shadow transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={uploading}
-              className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
+              className="bg-brand-accent hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow transition disabled:opacity-50"
             >
               {uploading ? 'Uploading...' : 'Upload'}
             </button>
@@ -209,7 +209,7 @@ const Templates: React.FC = () => {
             </div>
             <div>
               <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">HTML Content:</h4>
-              <pre className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md text-sm overflow-x-auto max-h-96 text-gray-900 dark:text-gray-100">
+              <pre className="bg-brand-panel border border-brand-dark p-4 rounded-md text-sm overflow-x-auto max-h-96 text-gray-900 dark:text-gray-100">
                 {previewTemplate.content}
               </pre>
             </div>
